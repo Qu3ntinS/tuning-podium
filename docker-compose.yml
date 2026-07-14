@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: podium
+      POSTGRES_PASSWORD: podium
+      POSTGRES_DB: tuning_podium
+    ports:
+      - "5433:5432"
+    volumes:
+      - podium_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U podium -d tuning_podium"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  podium_pg_data:

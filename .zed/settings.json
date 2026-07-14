@@ -1,0 +1,11 @@
+{
+  "context_servers": {
+    "shadcnVue": {
+      "source": "custom",
+      "enabled": true,
+      "command": "npx",
+      "args": ["-y", "shadcn-vue@latest", "mcp", "-c", "frontend"],
+      "env": {}
+    }
+  }
+}
