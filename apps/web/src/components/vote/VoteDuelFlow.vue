@@ -8,6 +8,7 @@ import { submitVote, type DuelInput, type EventConfig, type Vehicle, type VotePi
 import { buildSwipeDuels } from "@/lib/voting-modes";
 
 const props = defineProps<{
+  eventSlug: string;
   vehicles: Vehicle[];
   deviceToken: string;
   fingerprintHash: string;
@@ -62,7 +63,7 @@ async function handleSubmit() {
 
   submitting.value = true;
   try {
-    const result = await submitVote(props.deviceToken, props.fingerprintHash, { duels: results.value });
+    const result = await submitVote(props.eventSlug, props.deviceToken, props.fingerprintHash, { duels: results.value });
     emit("done", result.vote.picks);
     toast.success("Stimme übermittelt.");
   } catch (error) {

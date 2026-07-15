@@ -180,7 +180,7 @@ function openProfile(vehicle: VotePick["vehicle"]) {
     <VehicleDetailSheet v-model:open="profileOpen" :vehicle="profileVehicle" />
 
     <footer :class="cn('vote-done-cta-bar', !showPodium && 'vote-done-cta-bar-flow')">
-      <RouterLink to="/leaderboard" class="block w-full sm:w-auto">
+      <RouterLink :to="`/leaderboard/${config.slug}`" class="block w-full sm:w-auto">
         <Button class="vote-done-cta cta-button w-full sm:min-w-[15rem]">
           <TrophyIcon class="size-4" />
           Zur Rangliste

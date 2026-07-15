@@ -89,6 +89,14 @@ export const VehicleModel = {
   idParams: t.Object({
     id: t.String({ minLength: 1 }),
   }),
+  eventVehicleParams: t.Object({
+    slug: t.String({ minLength: 2, maxLength: 48 }),
+    id: t.String({ minLength: 1 }),
+  }),
+  adminEventVehicleParams: t.Object({
+    eventId: t.String({ minLength: 1 }),
+    id: t.String({ minLength: 1 }),
+  }),
   notFound: SharedModel.notFound,
 } as const;
 

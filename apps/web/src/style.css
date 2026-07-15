@@ -1887,6 +1887,40 @@
     padding-inline: 1rem;
   }
 
+  .admin-topbar-event {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .admin-topbar-event-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .admin-topbar-event-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .admin-topbar-event-slug {
+    margin-top: 0.125rem;
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+  }
+
+  .admin-event-create {
+    margin-bottom: 0.25rem;
+  }
+
   .admin-nav-scroll {
     margin-inline: -0.25rem;
     padding-inline: 0.25rem;
@@ -2114,6 +2148,23 @@
 
   .admin-field-stack {
     gap: 1rem;
+  }
+
+  .admin-event-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+  }
+
+  .admin-event-switcher-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .admin-event-switcher {
+    margin-bottom: 0.25rem;
   }
 
   .admin-settings-stack {
@@ -2348,8 +2399,65 @@
   .admin-share-body {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     gap: 1.25rem;
+  }
+
+  .admin-share-warning {
+    border-radius: 1rem;
+    padding: 0.875rem 1rem;
+    background: oklch(from var(--accent-rose) l c h / 12%);
+    border: 1px solid oklch(from var(--accent-rose) l c h / 24%);
+  }
+
+  .admin-share-warning-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--accent-rose);
+  }
+
+  .admin-share-warning-copy {
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--muted-foreground);
+  }
+
+  .admin-share-url-field {
+    width: 100%;
+  }
+
+  .admin-share-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .admin-share-link-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    border-radius: 1rem;
+    padding: 0.875rem 1rem;
+    background: var(--glass-bg-faint);
+    box-shadow: var(--glass-inset-highlight), var(--glass-ring);
+  }
+
+  .admin-share-link-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-cool);
+  }
+
+  .admin-share-actions {
+    width: 100%;
+  }
+
+  .admin-share-body .admin-qr-image {
+    align-self: center;
   }
 
   .admin-qr-image {
@@ -2362,8 +2470,9 @@
   }
 
   .admin-share-url {
+    margin-top: 0.25rem;
     width: 100%;
-    text-align: center;
+    text-align: left;
     font-family: var(--font-mono, ui-monospace, monospace);
     font-size: 0.8125rem;
     line-height: 1.5;

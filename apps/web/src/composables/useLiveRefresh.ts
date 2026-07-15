@@ -2,6 +2,7 @@ import { onMounted, onUnmounted, type Ref, unref, watch } from "vue";
 import { fetchLiveRevision } from "@/lib/api";
 
 type LiveRefreshOptions = {
+  slug: string | Ref<string> | (() => string);
   enabled?: Ref<boolean> | (() => boolean);
   intervalMs?: number;
   onRefresh: () => void | Promise<void>;
@@ -12,7 +13,11 @@ function isEnabled(enabled?: Ref<boolean> | (() => boolean)) {
   return typeof enabled === "function" ? enabled() : unref(enabled);
 }
 
-export function useLiveRefresh({ enabled, intervalMs = 5_000, onRefresh }: LiveRefreshOptions) {
+function resolveSlug(slug: string | Ref<string> | (() => string)) {
+  return typeof slug === "function" ? slug() : unref(slug);
+}
+
+export function useLiveRefresh({ slug, enabled, intervalMs = 5_000, onRefresh }: LiveRefreshOptions) {
   let revision: string | null = null;
   let timer: ReturnType<typeof setInterval> | null = null;
   let checking = false;
@@ -22,7 +27,7 @@ export function useLiveRefresh({ enabled, intervalMs = 5_000, onRefresh }: LiveR
 
     checking = true;
     try {
-      const live = await fetchLiveRevision();
+      const live = await fetchLiveRevision(resolveSlug(slug));
       if (revision === null) {
         revision = live.revision;
         return;

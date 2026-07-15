@@ -1,21 +1,29 @@
-import { getEventConfig } from "../../lib/event-config.js";
 import { prisma } from "../../lib/prisma.js";
+import { getEventBySlug } from "../../lib/events.js";
 import type { LiveRevisionDto } from "./model.js";
 
 export abstract class LiveService {
-  static async getRevision(): Promise<LiveRevisionDto> {
-    const [lastVote, eventConfig, vehicleAgg, totalVotes] = await Promise.all([
+  static async getRevision(slug: string): Promise<LiveRevisionDto | null> {
+    const event = await getEventBySlug(slug);
+    if (!event) {
+      return null;
+    }
+
+    const [lastVote, vehicleAgg, totalVotes] = await Promise.all([
       prisma.vote.findFirst({
+        where: { eventId: event.id },
         orderBy: { createdAt: "desc" },
         select: { createdAt: true },
       }),
-      getEventConfig(),
-      prisma.vehicle.aggregate({ _max: { updatedAt: true } }),
-      prisma.vote.count(),
+      prisma.vehicle.aggregate({
+        where: { eventId: event.id },
+        _max: { updatedAt: true },
+      }),
+      prisma.vote.count({ where: { eventId: event.id } }),
     ]);
 
     const lastVoteAt = lastVote?.createdAt.toISOString() ?? null;
-    const eventConfigAt = eventConfig.updatedAt.toISOString();
+    const eventConfigAt = event.updatedAt.toISOString();
     const vehiclesAt = vehicleAgg._max.updatedAt?.toISOString() ?? null;
 
     return {

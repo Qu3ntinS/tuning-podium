@@ -1,17 +1,23 @@
-import { getEventConfig } from "../../lib/event-config.js";
 import { prisma } from "../../lib/prisma.js";
+import { getEventBySlug, serializeEvent } from "../../lib/events.js";
 
 export abstract class LeaderboardService {
-  static async getSnapshot() {
-    const [picks, stats, eventConfig, lastVote] = await Promise.all([
+  static async getSnapshot(slug: string) {
+    const event = await getEventBySlug(slug);
+    if (!event) {
+      return null;
+    }
+
+    const [picks, stats, lastVote] = await Promise.all([
       prisma.votePick.groupBy({
         by: ["vehicleId"],
+        where: { vote: { eventId: event.id } },
         _sum: { points: true },
         _count: { _all: true },
       }),
-      prisma.vote.count(),
-      getEventConfig(),
+      prisma.vote.count({ where: { eventId: event.id } }),
       prisma.vote.findFirst({
+        where: { eventId: event.id },
         orderBy: { createdAt: "desc" },
         select: { createdAt: true },
       }),
@@ -19,7 +25,7 @@ export abstract class LeaderboardService {
 
     const vehicleIds = picks.map((p) => p.vehicleId);
     const vehicles = await prisma.vehicle.findMany({
-      where: { id: { in: vehicleIds } },
+      where: { id: { in: vehicleIds }, eventId: event.id },
       select: { id: true, name: true, number: true, imageUrl: true },
     });
     const vehicleById = new Map(vehicles.map((v) => [v.id, v]));
@@ -38,9 +44,10 @@ export abstract class LeaderboardService {
       .sort((a, b) => b.totalPoints - a.totalPoints || b.voteCount - a.voteCount);
 
     return {
-      updatedAt: (lastVote?.createdAt ?? eventConfig.updatedAt).toISOString(),
+      event: serializeEvent(event),
+      updatedAt: (lastVote?.createdAt ?? event.updatedAt).toISOString(),
       totalVotes: stats,
-      votingMode: eventConfig.votingMode,
+      votingMode: event.votingMode,
       entries,
     };
   }

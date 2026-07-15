@@ -7,6 +7,7 @@ import VehicleDetailSheet from "@/components/vote/VehicleDetailSheet.vue";
 import { submitVote, type EventConfig, type Vehicle, type VotePick } from "@/lib/api";
 
 const props = defineProps<{
+  eventSlug: string;
   vehicles: Vehicle[];
   deviceToken: string;
   fingerprintHash: string;
@@ -57,7 +58,7 @@ async function handleSubmit() {
 
   submitting.value = true;
   try {
-    const result = await submitVote(props.deviceToken, props.fingerprintHash, { picks: ratings.value });
+    const result = await submitVote(props.eventSlug, props.deviceToken, props.fingerprintHash, { picks: ratings.value });
     emit("done", result.vote.picks);
     toast.success("Stimme übermittelt.");
   } catch (error) {

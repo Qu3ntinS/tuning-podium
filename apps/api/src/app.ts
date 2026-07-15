@@ -36,7 +36,7 @@ export function buildApp(config: Env) {
       rateLimitPlugin({
         max: config.voteRateLimitMax,
         windowMs: config.voteRateLimitWindowMs,
-        prefix: "/api/votes",
+        prefix: "/api/events",
         trustProxy: config.trustProxy,
       }),
     )

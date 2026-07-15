@@ -65,10 +65,14 @@ export const VoteModel = {
         picks: t.Array(votePick),
       }),
     ),
-    config: t.Object({
+    event: t.Object({
+      id: t.String(),
+      slug: t.String(),
+      name: t.String(),
       votingMode: SharedModel.votingMode,
       coinBudget: t.Integer(),
       swipeDuels: t.Integer(),
+      active: t.Boolean(),
       updatedAt: t.String(),
     }),
   }),

@@ -1,5 +1,5 @@
 import type { VotingMode } from "@prisma/client";
-import type { EventSettings } from "./event-config.js";
+import type { EventSettings } from "./events.js";
 
 const PODIUM_POINTS_BY_RANK: Record<number, number> = {
   1: 5,

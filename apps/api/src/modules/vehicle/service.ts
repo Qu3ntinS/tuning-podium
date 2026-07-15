@@ -11,6 +11,7 @@ import {
   type VehicleProfileInput,
   vehiclePublicSelect,
 } from "../../lib/vehicle-profile.js";
+import { getEventById } from "../../lib/events.js";
 
 const adminVehicleSelect = {
   id: true,
@@ -48,19 +49,48 @@ async function loadAdminVehicle(id: string) {
   });
 }
 
+async function resolveEvent(eventId: string) {
+  const event = await getEventById(eventId);
+  if (!event) {
+    return null;
+  }
+  return event;
+}
+
 export abstract class VehicleService {
-  static async listActive() {
+  static async listActive(eventId: string) {
+    const event = await resolveEvent(eventId);
+    if (!event || !event.active) {
+      return status(404, { error: "Event nicht gefunden." });
+    }
+
     const vehicles = await prisma.vehicle.findMany({
-      where: { active: true },
+      where: { eventId: event.id, active: true },
       orderBy: [{ number: "asc" }, { name: "asc" }],
       select: vehiclePublicSelect,
     });
     return { vehicles };
   }
 
-  static async getActiveById(id: string) {
+  static async listActiveBySlug(slug: string) {
+    const event = await prisma.event.findFirst({ where: { slug, active: true } });
+    if (!event) {
+      return status(404, { error: "Event nicht gefunden." });
+    }
+    return VehicleService.listActive(event.id);
+  }
+
+  static async getActiveBySlug(slug: string, id: string) {
+    const event = await prisma.event.findFirst({ where: { slug, active: true } });
+    if (!event) {
+      return status(404, { error: "Event nicht gefunden." });
+    }
+    return VehicleService.getActiveById(event.id, id);
+  }
+
+  static async getActiveById(eventId: string, id: string) {
     const vehicle = await prisma.vehicle.findFirst({
-      where: { id, active: true },
+      where: { id, eventId, active: true },
       select: vehiclePublicSelect,
     });
 
@@ -71,8 +101,14 @@ export abstract class VehicleService {
     return { vehicle };
   }
 
-  static async listAll() {
+  static async listAll(eventId: string) {
+    const event = await resolveEvent(eventId);
+    if (!event) {
+      return status(404, { error: "Event nicht gefunden." });
+    }
+
     const vehicles = await prisma.vehicle.findMany({
+      where: { eventId: event.id },
       orderBy: [{ number: "asc" }, { name: "asc" }],
       select: adminVehicleSelect,
     });
@@ -80,6 +116,7 @@ export abstract class VehicleService {
   }
 
   static async create(
+    eventId: string,
     input: {
       name: string;
       number?: number | null;
@@ -88,11 +125,17 @@ export abstract class VehicleService {
       active?: boolean;
     } & VehicleProfileInput,
   ) {
+    const event = await resolveEvent(eventId);
+    if (!event) {
+      return status(404, { error: "Event nicht gefunden." });
+    }
+
     const profile = normalizeVehicleProfile(input);
     const imagePayload = imagesFromBody(input.images, input.imageUrl);
 
     const vehicle = await prisma.vehicle.create({
       data: {
+        eventId: event.id,
         name: input.name.trim(),
         number: input.number ?? null,
         imageUrl: null,
@@ -111,6 +154,7 @@ export abstract class VehicleService {
   }
 
   static async update(
+    eventId: string,
     id: string,
     input: Partial<{
       name: string;
@@ -121,7 +165,7 @@ export abstract class VehicleService {
     }> &
       VehicleProfileInput,
   ) {
-    const existing = await prisma.vehicle.findUnique({ where: { id } });
+    const existing = await prisma.vehicle.findFirst({ where: { id, eventId } });
     if (!existing) {
       return status(404, { error: "Fahrzeug nicht gefunden." });
     }
@@ -163,8 +207,8 @@ export abstract class VehicleService {
     return { vehicle };
   }
 
-  static async remove(id: string) {
-    const existing = await prisma.vehicle.findUnique({ where: { id } });
+  static async remove(eventId: string, id: string) {
+    const existing = await prisma.vehicle.findFirst({ where: { id, eventId } });
     if (!existing) {
       return status(404, { error: "Fahrzeug nicht gefunden." });
     }

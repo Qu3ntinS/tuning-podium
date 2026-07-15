@@ -9,6 +9,7 @@ import { submitVote, type EventConfig, type Vehicle, type VotePick } from "@/lib
 import { vehicleDisplayName } from "@/lib/vehicle-visual";
 
 const props = defineProps<{
+  eventSlug: string;
   vehicles: Vehicle[];
   deviceToken: string;
   fingerprintHash: string;
@@ -82,7 +83,7 @@ async function handleSubmit() {
 
   submitting.value = true;
   try {
-    const result = await submitVote(props.deviceToken, props.fingerprintHash, { picks: payload });
+    const result = await submitVote(props.eventSlug, props.deviceToken, props.fingerprintHash, { picks: payload });
     emit("done", result.vote.picks);
     toast.success("Stimme übermittelt.");
   } catch (error) {

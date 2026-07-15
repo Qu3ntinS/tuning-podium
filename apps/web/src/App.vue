@@ -5,6 +5,7 @@ import MobileTabBar from "@/components/layout/MobileTabBar.vue";
 import ConfirmDialog from "@/components/shared/ConfirmDialog.vue";
 import SettingsSheet from "@/components/settings/SettingsSheet.vue";
 import { Toaster } from "@/components/ui/sonner";
+import { useActiveEventSlug } from "@/composables/useActiveEvent";
 import { useClickSounds } from "@/composables/useSounds";
 import { useTheme } from "@/composables/useTheme";
 import { cn } from "@/lib/utils";
@@ -12,16 +13,17 @@ import { cn } from "@/lib/utils";
 const route = useRoute();
 const router = useRouter();
 const { isDark } = useTheme();
+const { activeEventSlug } = useActiveEventSlug();
 
 useClickSounds();
 
 const toastTheme = computed(() => (isDark.value ? "dark" : "light"));
 const settingsOpen = ref(false);
 
-const navItems = [
-  { to: "/vote", label: "Abstimmung" },
-  { to: "/leaderboard", label: "Rangliste" },
-];
+const navItems = computed(() => [
+  { to: `/vote/${activeEventSlug.value}`, label: "Abstimmung" },
+  { to: `/leaderboard/${activeEventSlug.value}`, label: "Rangliste" },
+]);
 
 watch(
   () => route.query.admin,
@@ -50,7 +52,7 @@ watch(
     <header class="app-header">
       <div class="header-glow pointer-events-none absolute inset-x-0 bottom-0 h-px" />
       <div class="app-header-inner mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
-        <RouterLink to="/vote" class="group flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-90 sm:gap-3">
+        <RouterLink :to="`/vote/${activeEventSlug}`" class="group flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-90 sm:gap-3">
           <div class="logo-mark flex size-9 shrink-0 items-center justify-center rounded-xl sm:size-10">
             <span class="font-heading text-sm font-bold tracking-tight text-foreground">TP</span>
           </div>
@@ -70,7 +72,7 @@ watch(
             :class="
               cn(
                 'relative rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-300',
-                route.path === item.to
+                route.path === item.to || route.path.startsWith(`${item.to}/`)
                   ? 'nav-link-active'
                   : 'text-muted-foreground hover:text-foreground',
               )

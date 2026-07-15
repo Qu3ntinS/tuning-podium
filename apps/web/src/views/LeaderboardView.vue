@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { toast } from "@/lib/toast";
 import LeaderboardChart from "@/components/leaderboard/LeaderboardChart.vue";
 import LeaderboardPodium from "@/components/leaderboard/LeaderboardPodium.vue";
@@ -7,14 +7,22 @@ import PageHeader from "@/components/layout/PageHeader.vue";
 import SurfaceCard from "@/components/layout/SurfaceCard.vue";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveRefresh } from "@/composables/useLiveRefresh";
+import { useActiveEventSlug } from "@/composables/useActiveEvent";
 import { fetchLeaderboard, type LeaderboardEntry, type VotingMode } from "@/lib/api";
 import { votingModeLabel } from "@/lib/voting-modes";
 import { cn } from "@/lib/utils";
+
+const props = defineProps<{
+  slug: string;
+}>();
+
+const { setActiveEventSlug } = useActiveEventSlug();
 
 const loading = ref(true);
 const entries = ref<LeaderboardEntry[]>([]);
 const totalVotes = ref(0);
 const votingMode = ref<VotingMode>("PODIUM");
+const eventName = ref("");
 const updatedAt = ref<string | null>(null);
 
 const headerStats = computed(() => {
@@ -27,10 +35,11 @@ const headerStats = computed(() => {
 
 async function loadLeaderboard(silent = false) {
   try {
-    const data = await fetchLeaderboard();
+    const data = await fetchLeaderboard(props.slug);
     entries.value = data.entries;
     totalVotes.value = data.totalVotes;
     votingMode.value = data.votingMode;
+    eventName.value = data.event.name;
     updatedAt.value = data.updatedAt;
   } catch (error) {
     if (!silent) {
@@ -41,18 +50,25 @@ async function loadLeaderboard(silent = false) {
   }
 }
 
-onMounted(() => {
-  void loadLeaderboard();
-});
+watch(
+  () => props.slug,
+  (slug) => {
+    setActiveEventSlug(slug);
+    loading.value = true;
+    void loadLeaderboard();
+  },
+  { immediate: true },
+);
 
 useLiveRefresh({
+  slug: () => props.slug,
   onRefresh: () => loadLeaderboard(true),
 });
 </script>
 
 <template>
   <div class="app-page">
-    <PageHeader eyebrow="Live" title="Rangliste">
+    <PageHeader eyebrow="Live" :title="eventName || 'Rangliste'">
       <template #description>
         <div class="flex flex-wrap gap-1.5">
           <span v-for="(stat, index) in headerStats" :key="index" :class="cn('stat-pill', index === 0 && 'stat-pill-cool', index === 1 && 'stat-pill-violet')">

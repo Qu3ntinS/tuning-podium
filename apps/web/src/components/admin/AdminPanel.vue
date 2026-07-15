@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import QRCode from "qrcode";
 import {
   CarIcon,
   ChevronRightIcon,
+  CopyIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   PlusIcon,
   QrCodeIcon,
   Settings2Icon,
+  Share2Icon,
   Trash2Icon,
   VoteIcon,
 } from "@lucide/vue";
@@ -23,22 +25,34 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLiveRefresh } from "@/composables/useLiveRefresh";
+import { useActiveEventSlug } from "@/composables/useActiveEvent";
 import { useAdminAuth } from "@/composables/useAdminAuth";
 import {
   adminLogin,
   assetUrl,
+  createAdminEvent,
   createVehicle,
+  deleteAdminEvent,
   deleteVehicle,
+  copyTextToClipboard,
+  canUseNativeShare,
+  DEFAULT_EVENT_SLUG,
+  eventLeaderboardUrl,
   eventVoteUrl,
-  fetchAdminEventConfig,
+  getPublicAppUrlOverride,
+  isUnshareableAppUrl,
+  setPublicAppUrlOverride,
+  shareEventLinks,
+  fetchAdminEvents,
   fetchAdminMe,
   fetchAdminVehicles,
   fetchAdminVoteStats,
+  normalizeEventSlugInput,
   resetAdminVotes,
-  updateAdminEventConfig,
+  updateAdminEvent,
   updateVehicle,
   uploadVehicleImage,
-  type EventConfig,
+  type PodiumEvent,
   type Vehicle,
   type VotingMode,
 } from "@/lib/api";
@@ -67,18 +81,27 @@ withDefaults(
 );
 
 const { accessToken, admin, setSession, clearSession } = useAdminAuth();
+const { activeEventSlug, setActiveEventSlug } = useActiveEventSlug();
 const authenticated = ref(Boolean(accessToken.value));
 const initializing = ref(false);
 const loginForm = ref({ email: "", password: "" });
 const loading = ref(false);
 const vehicles = ref<Vehicle[]>([]);
+const events = ref<PodiumEvent[]>([]);
+const creatingEvent = ref(false);
+const showNewEventForm = ref(false);
+const newEventForm = ref({ name: "", slug: "" });
 const eventQrDataUrl = ref("");
-const voteUrl = ref(eventVoteUrl());
+const voteUrl = ref(eventVoteUrl(activeEventSlug.value));
+const leaderboardUrl = ref(eventLeaderboardUrl(activeEventSlug.value));
+const publicAppUrlInput = ref(getPublicAppUrlOverride());
+const shareWarning = computed(() => isUnshareableAppUrl(voteUrl.value));
+const nativeShareAvailable = computed(() => canUseNativeShare());
 const uploading = ref(false);
 const savingSettings = ref(false);
 const resettingVotes = ref(false);
 const totalVotes = ref(0);
-const eventSettings = ref<EventConfig | null>(null);
+const eventSettings = ref<PodiumEvent | null>(null);
 const activeSection = ref<AdminSection>("overview");
 const vehicleSheetOpen = ref(false);
 const vehicleSheetMode = ref<"create" | "edit">("create");
@@ -99,6 +122,10 @@ const vehicleForm = ref<VehicleFormState>({
 });
 
 const activeVehicles = computed(() => vehicles.value.filter((v) => v.active).length);
+const selectedEvent = computed(
+  () => events.value.find((event) => event.slug === activeEventSlug.value) ?? null,
+);
+const selectedEventId = computed(() => selectedEvent.value?.id ?? null);
 const modeMeta = computed(() => VOTING_MODE_META[settingsForm.value.votingMode]);
 
 const sections: Array<{ id: AdminSection; label: string; icon: typeof LayoutDashboardIcon }> = [
@@ -146,12 +173,109 @@ async function uploadImageFile(file: File) {
 }
 
 async function renderEventQr() {
-  voteUrl.value = eventVoteUrl();
+  if (!selectedEvent.value) return;
+  voteUrl.value = eventVoteUrl(selectedEvent.value.slug);
+  leaderboardUrl.value = eventLeaderboardUrl(selectedEvent.value.slug);
   eventQrDataUrl.value = await QRCode.toDataURL(voteUrl.value, {
     width: 280,
     margin: 2,
     color: { dark: "#0a0a0a", light: "#ffffff" },
   });
+}
+
+function applyPublicAppUrl() {
+  setPublicAppUrlOverride(publicAppUrlInput.value);
+  void renderEventQr();
+  toast.success(publicAppUrlInput.value.trim() ? "Öffentliche URL gespeichert." : "URL-Override entfernt.");
+}
+
+async function copyLink(url: string, label: string) {
+  try {
+    await copyTextToClipboard(url);
+    toast.success(`${label} kopiert.`);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Kopieren fehlgeschlagen.");
+  }
+}
+
+async function handleNativeShare() {
+  if (!selectedEvent.value) return;
+
+  try {
+    const result = await shareEventLinks(selectedEvent.value.name, selectedEvent.value.slug);
+    if (result === "unsupported") {
+      await copyLink(voteUrl.value, "Abstimmungs-Link");
+      return;
+    }
+    toast.success("Teilen-Dialog geöffnet.");
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") return;
+    toast.error(error instanceof Error ? error.message : "Teilen fehlgeschlagen.");
+  }
+}
+
+async function loadEvents() {
+  if (!accessToken.value) return;
+  const list = await fetchAdminEvents(accessToken.value);
+  events.value = list;
+  if (!list.some((event) => event.slug === activeEventSlug.value)) {
+    activeEventSlug.value = list[0]?.slug ?? DEFAULT_EVENT_SLUG;
+  }
+}
+
+async function selectEvent(eventSlug: string) {
+  setActiveEventSlug(eventSlug);
+  await Promise.all([loadVehicles(), loadEventSettings(), loadVoteStats(), renderEventQr()]);
+}
+
+async function handleCreateEvent() {
+  if (!accessToken.value) return;
+
+  const name = newEventForm.value.name.trim();
+  const slug = normalizeEventSlugInput(newEventForm.value.slug || name);
+  if (!name || !slug) {
+    toast.error("Name und Slug sind erforderlich.");
+    return;
+  }
+
+  creatingEvent.value = true;
+  try {
+    const event = await createAdminEvent(accessToken.value, { name, slug });
+    events.value = [...events.value, event];
+    newEventForm.value = { name: "", slug: "" };
+    showNewEventForm.value = false;
+    await selectEvent(event.slug);
+    toast.success(`Event „${event.name}" angelegt.`);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Event konnte nicht angelegt werden.");
+  } finally {
+    creatingEvent.value = false;
+  }
+}
+
+async function handleDeleteEvent(event: PodiumEvent) {
+  if (!accessToken.value || events.value.length <= 1) return;
+
+  const confirmed = await confirm({
+    title: `Event „${event.name}" wirklich löschen?`,
+    description: "Alle Fahrzeuge und Stimmen dieses Events werden gelöscht.",
+    confirmLabel: "Löschen",
+    cancelLabel: "Abbrechen",
+    destructive: true,
+  });
+  if (!confirmed) return;
+
+  try {
+    await deleteAdminEvent(accessToken.value, event.id);
+    events.value = events.value.filter((entry) => entry.id !== event.id);
+    if (activeEventSlug.value === event.slug) {
+      activeEventSlug.value = events.value[0]?.slug ?? DEFAULT_EVENT_SLUG;
+      await Promise.all([loadVehicles(), loadEventSettings(), loadVoteStats(), renderEventQr()]);
+    }
+    toast.success("Event gelöscht.");
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Löschen fehlgeschlagen.");
+  }
 }
 
 async function handleLogin() {
@@ -177,10 +301,10 @@ async function handleLogin() {
     setSession(result.accessToken, result.admin);
     authenticated.value = true;
     loginForm.value.password = "";
-    await loadVehicles();
-    await loadEventSettings();
-    await loadVoteStats();
-    await renderEventQr();
+    await loadEvents();
+    if (selectedEvent.value) {
+      await Promise.all([loadVehicles(), loadEventSettings(), loadVoteStats(), renderEventQr()]);
+    }
     toast.success("Anmeldung erfolgreich.");
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Login fehlgeschlagen.");
@@ -197,9 +321,9 @@ function handleLogout() {
 }
 
 async function loadVoteStats() {
-  if (!accessToken.value) return;
+  if (!accessToken.value || !selectedEventId.value) return;
   try {
-    const stats = await fetchAdminVoteStats(accessToken.value);
+    const stats = await fetchAdminVoteStats(accessToken.value, selectedEventId.value);
     totalVotes.value = stats.totalVotes;
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Stimmenstatistik konnte nicht geladen werden.");
@@ -207,7 +331,7 @@ async function loadVoteStats() {
 }
 
 async function handleResetVotes() {
-  if (!accessToken.value) return;
+  if (!accessToken.value || !selectedEventId.value) return;
 
   const confirmed = await confirm({
     title: `Alle ${totalVotes.value} Stimmen wirklich löschen?`,
@@ -220,7 +344,7 @@ async function handleResetVotes() {
 
   resettingVotes.value = true;
   try {
-    const result = await resetAdminVotes(accessToken.value);
+    const result = await resetAdminVotes(accessToken.value, selectedEventId.value);
     totalVotes.value = 0;
     toast.success(`${result.deletedVotes} Stimmen zurückgesetzt.`);
   } catch (error) {
@@ -231,9 +355,9 @@ async function handleResetVotes() {
 }
 
 async function loadEventSettings() {
-  if (!accessToken.value) return;
+  if (!accessToken.value || !selectedEvent.value) return;
   try {
-    const config = await fetchAdminEventConfig(accessToken.value);
+    const config = selectedEvent.value;
     eventSettings.value = config;
     settingsForm.value = {
       votingMode: config.votingMode,
@@ -246,11 +370,12 @@ async function loadEventSettings() {
 }
 
 async function handleSaveSettings() {
-  if (!accessToken.value) return;
+  if (!accessToken.value || !selectedEventId.value) return;
   savingSettings.value = true;
   try {
-    const config = await updateAdminEventConfig(accessToken.value, settingsForm.value);
+    const config = await updateAdminEvent(accessToken.value, selectedEventId.value, settingsForm.value);
     eventSettings.value = config;
+    events.value = events.value.map((event) => (event.id === config.id ? config : event));
     toast.success("Abstimmung gespeichert.");
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Speichern fehlgeschlagen.");
@@ -260,10 +385,10 @@ async function handleSaveSettings() {
 }
 
 async function loadVehicles() {
-  if (!accessToken.value) return;
+  if (!accessToken.value || !selectedEventId.value) return;
   loading.value = true;
   try {
-    vehicles.value = await fetchAdminVehicles(accessToken.value);
+    vehicles.value = await fetchAdminVehicles(accessToken.value, selectedEventId.value);
   } catch (error) {
     clearSession();
     authenticated.value = false;
@@ -289,7 +414,7 @@ async function handleVehicleImagesSelect(files: File[]) {
 }
 
 async function handleVehicleSave() {
-  if (!accessToken.value || !vehicleForm.value.name.trim()) return;
+  if (!accessToken.value || !selectedEventId.value || !vehicleForm.value.name.trim()) return;
 
   savingVehicle.value = true;
   try {
@@ -303,10 +428,10 @@ async function handleVehicleSave() {
     };
 
     if (vehicleSheetMode.value === "create") {
-      await createVehicle(accessToken.value, payload);
+      await createVehicle(accessToken.value, selectedEventId.value!, payload);
       toast.success("Fahrzeug angelegt.");
     } else if (editingVehicleId.value) {
-      await updateVehicle(accessToken.value, editingVehicleId.value, payload);
+      await updateVehicle(accessToken.value, selectedEventId.value!, editingVehicleId.value, payload);
       toast.success("Fahrzeug gespeichert.");
     }
 
@@ -322,9 +447,9 @@ async function handleVehicleSave() {
 }
 
 async function toggleActive(vehicle: Vehicle) {
-  if (!accessToken.value) return;
+  if (!accessToken.value || !selectedEventId.value) return;
   try {
-    await updateVehicle(accessToken.value, vehicle.id, { active: !vehicle.active });
+    await updateVehicle(accessToken.value, selectedEventId.value!, vehicle.id, { active: !vehicle.active });
     await loadVehicles();
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Aktualisieren fehlgeschlagen.");
@@ -332,7 +457,7 @@ async function toggleActive(vehicle: Vehicle) {
 }
 
 async function handleDelete(vehicle: Vehicle) {
-  if (!accessToken.value) return;
+  if (!accessToken.value || !selectedEventId.value) return;
 
   const confirmed = await confirm({
     title: `„${vehicle.name}" wirklich löschen?`,
@@ -343,7 +468,7 @@ async function handleDelete(vehicle: Vehicle) {
   if (!confirmed) return;
 
   try {
-    await deleteVehicle(accessToken.value, vehicle.id);
+    await deleteVehicle(accessToken.value, selectedEventId.value!, vehicle.id);
     if (editingVehicleId.value === vehicle.id) {
       vehicleSheetOpen.value = false;
       editingVehicleId.value = null;
@@ -359,30 +484,34 @@ async function downloadEventQr() {
   if (!eventQrDataUrl.value) return;
   const link = document.createElement("a");
   link.href = eventQrDataUrl.value;
-  link.download = "tuning-podium-event-qr.png";
+  link.download = `${selectedEvent.value?.slug ?? "event"}-qr.png`;
   link.click();
 }
 
 async function refreshLiveData() {
-  if (!accessToken.value || !authenticated.value) return;
+  if (!accessToken.value || !authenticated.value || !selectedEventId.value) return;
 
   try {
-    const [vehicleList, stats, config] = await Promise.all([
-      fetchAdminVehicles(accessToken.value),
-      fetchAdminVoteStats(accessToken.value),
-      fetchAdminEventConfig(accessToken.value),
+    const [vehicleList, stats, eventList] = await Promise.all([
+      fetchAdminVehicles(accessToken.value, selectedEventId.value),
+      fetchAdminVoteStats(accessToken.value, selectedEventId.value),
+      fetchAdminEvents(accessToken.value),
     ]);
 
     vehicles.value = vehicleList;
     totalVotes.value = stats.totalVotes;
-    eventSettings.value = config;
+    events.value = eventList;
 
-    if (!savingSettings.value) {
-      settingsForm.value = {
-        votingMode: config.votingMode,
-        coinBudget: config.coinBudget,
-        swipeDuels: config.swipeDuels,
-      };
+    const config = eventList.find((event) => event.id === selectedEventId.value);
+    if (config) {
+      eventSettings.value = config;
+      if (!savingSettings.value) {
+        settingsForm.value = {
+          votingMode: config.votingMode,
+          coinBudget: config.coinBudget,
+          swipeDuels: config.swipeDuels,
+        };
+      }
     }
   } catch {
     // Background sync stays silent.
@@ -399,7 +528,10 @@ async function initialize() {
   try {
     await fetchAdminMe(accessToken.value);
     authenticated.value = true;
-    await Promise.all([loadVehicles(), loadEventSettings(), loadVoteStats(), renderEventQr()]);
+    await loadEvents();
+    if (selectedEvent.value) {
+      await Promise.all([loadVehicles(), loadEventSettings(), loadVoteStats(), renderEventQr()]);
+    }
   } catch {
     handleLogout();
   } finally {
@@ -412,8 +544,19 @@ watch(accessToken, (token) => {
 });
 
 useLiveRefresh({
+  slug: () => activeEventSlug.value,
   enabled: authenticated,
   onRefresh: refreshLiveData,
+});
+
+watch(activeSection, (section) => {
+  if (section === "share") {
+    void renderEventQr();
+  }
+});
+
+onMounted(() => {
+  void initialize();
 });
 
 defineExpose({ initialize });
@@ -452,7 +595,84 @@ defineExpose({ initialize });
             Abmelden
           </Button>
         </div>
+
+        <div v-if="events.length" class="admin-topbar-event">
+          <div class="admin-topbar-event-head">
+            <div class="min-w-0">
+              <p class="admin-topbar-eyebrow">Aktives Event</p>
+              <p v-if="selectedEvent" class="admin-topbar-event-slug">/{{ selectedEvent.slug }}</p>
+            </div>
+            <div class="admin-topbar-event-actions">
+              <Button variant="outline" size="sm" @click="showNewEventForm = !showNewEventForm">
+                <PlusIcon />
+                Neues Event
+              </Button>
+              <Button
+                v-if="selectedEvent && events.length > 1"
+                variant="outline"
+                size="sm"
+                @click="handleDeleteEvent(selectedEvent)"
+              >
+                <Trash2Icon />
+                Löschen
+              </Button>
+            </div>
+          </div>
+
+          <div class="admin-event-pills" role="tablist" aria-label="Event auswählen">
+            <Button
+              v-for="event in events"
+              :key="event.id"
+              type="button"
+              size="sm"
+              role="tab"
+              :aria-selected="event.slug === activeEventSlug"
+              :variant="event.slug === activeEventSlug ? 'secondary' : 'outline'"
+              @click="selectEvent(event.slug)"
+            >
+              {{ event.name }}
+            </Button>
+          </div>
+        </div>
       </header>
+
+      <section
+        v-if="showNewEventForm"
+        class="content-panel admin-event-create"
+      >
+        <div class="panel-body admin-settings-stack">
+          <div>
+            <h2 class="panel-title">Neues Event anlegen</h2>
+            <p class="panel-description">Eigenes Event mit eigener URL, Fahrzeugen und Abstimmung.</p>
+          </div>
+
+          <FieldGroup class="admin-field-stack">
+            <Field>
+              <FieldLabel for="new-event-name">Name</FieldLabel>
+              <Input
+                id="new-event-name"
+                v-model="newEventForm.name"
+                placeholder="Sommerfest 2026"
+              />
+            </Field>
+            <Field>
+              <FieldLabel for="new-event-slug">Slug (URL)</FieldLabel>
+              <Input
+                id="new-event-slug"
+                v-model="newEventForm.slug"
+                placeholder="sommerfest"
+              />
+            </Field>
+          </FieldGroup>
+
+          <div class="admin-actions admin-actions-fit">
+            <Button variant="outline" @click="showNewEventForm = false">Abbrechen</Button>
+            <Button :disabled="creatingEvent" @click="handleCreateEvent">
+              {{ creatingEvent ? "Anlegen…" : "Event anlegen" }}
+            </Button>
+          </div>
+        </div>
+      </section>
 
       <div class="admin-nav-scroll">
         <nav class="admin-nav" aria-label="Verwaltungsbereiche">
@@ -713,19 +933,72 @@ defineExpose({ initialize });
       <section v-else-if="activeSection === 'share'" class="admin-section content-panel">
         <div class="panel-head">
           <h2 class="panel-title">Event teilen</h2>
-          <p class="panel-description">QR-Code und Link zur Abstimmung.</p>
+          <p class="panel-description">
+            Links und QR für {{ selectedEvent?.name ?? "dieses Event" }}.
+          </p>
         </div>
-        <div class="panel-body admin-share-body">
+        <div class="panel-body admin-share-body admin-settings-stack">
+          <div v-if="shareWarning" class="admin-share-warning">
+            <p class="admin-share-warning-title">Nicht öffentlich erreichbar</p>
+            <p class="admin-share-warning-copy">
+              Der Link zeigt auf localhost oder ein privates Netzwerk. Gäste können ihn nicht öffnen.
+              Trage unten deine echte Domain ein (z. B. https://vote.dein-event.de).
+            </p>
+          </div>
+
+          <FieldGroup class="admin-field-stack admin-share-url-field">
+            <Field>
+              <FieldLabel for="public-app-url">Öffentliche App-URL</FieldLabel>
+              <Input
+                id="public-app-url"
+                v-model="publicAppUrlInput"
+                placeholder="https://vote.dein-event.de"
+              />
+            </Field>
+            <div class="admin-actions admin-actions-fit">
+              <Button variant="outline" @click="applyPublicAppUrl">URL übernehmen</Button>
+            </div>
+          </FieldGroup>
+
           <img
             v-if="eventQrDataUrl"
             :src="eventQrDataUrl"
             alt="Event QR Code"
             class="admin-qr-image"
           />
-          <p class="admin-share-url">{{ voteUrl }}</p>
-          <div class="admin-actions admin-actions-row">
-            <Button variant="outline" @click="renderEventQr">Aktualisieren</Button>
-            <Button @click="downloadEventQr">Speichern</Button>
+
+          <div class="admin-share-links">
+            <article class="admin-share-link-row">
+              <div class="min-w-0">
+                <p class="admin-share-link-label">Abstimmung</p>
+                <p class="admin-share-url">{{ voteUrl }}</p>
+              </div>
+              <Button variant="outline" size="icon" aria-label="Abstimmungs-Link kopieren" @click="copyLink(voteUrl, 'Abstimmungs-Link')">
+                <CopyIcon class="size-4" />
+              </Button>
+            </article>
+
+            <article class="admin-share-link-row">
+              <div class="min-w-0">
+                <p class="admin-share-link-label">Rangliste</p>
+                <p class="admin-share-url">{{ leaderboardUrl }}</p>
+              </div>
+              <Button variant="outline" size="icon" aria-label="Ranglisten-Link kopieren" @click="copyLink(leaderboardUrl, 'Ranglisten-Link')">
+                <CopyIcon class="size-4" />
+              </Button>
+            </article>
+          </div>
+
+          <div class="admin-actions admin-actions-row admin-share-actions">
+            <Button v-if="nativeShareAvailable" variant="outline" @click="handleNativeShare">
+              <Share2Icon class="size-4" />
+              Teilen
+            </Button>
+            <Button variant="outline" @click="copyLink(voteUrl, 'Abstimmungs-Link')">
+              <CopyIcon class="size-4" />
+              Link kopieren
+            </Button>
+            <Button @click="downloadEventQr">QR speichern</Button>
           </div>
         </div>
       </section>

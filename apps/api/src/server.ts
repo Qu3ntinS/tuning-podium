@@ -4,7 +4,7 @@ import { resolveUploadRoot } from "./lib/assets.js";
 import { disconnectPrisma } from "./lib/prisma.js";
 import { buildApp } from "./app.js";
 import { AdminAuthService } from "./modules/admin-auth/index.js";
-import { getEventConfig } from "./lib/event-config.js";
+import { ensureDefaultEvent } from "./lib/events.js";
 
 async function main() {
   const config = loadEnv();
@@ -17,7 +17,7 @@ async function main() {
 
   await mkdir(resolveUploadRoot(config), { recursive: true });
   await mkdir(`${resolveUploadRoot(config)}/vehicles`, { recursive: true });
-  await getEventConfig();
+  await ensureDefaultEvent();
 
   const app = buildApp(config);
 

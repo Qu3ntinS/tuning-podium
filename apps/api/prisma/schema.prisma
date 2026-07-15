@@ -14,12 +14,20 @@ enum VotingMode {
   DUEL
 }
 
-model EventConfig {
-  id         String     @id @default("default")
+model Event {
+  id         String     @id @default(cuid())
+  slug       String     @unique
+  name       String
   votingMode VotingMode @default(PODIUM)
   coinBudget Int        @default(10)
   swipeDuels Int        @default(12)
+  active     Boolean    @default(true)
+  createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
+  vehicles   Vehicle[]
+  votes      Vote[]
+
+  @@index([active])
 }
 
 model Admin {
@@ -33,6 +41,7 @@ model Admin {
 
 model Vehicle {
   id            String         @id @default(cuid())
+  eventId       String
   name          String
   number        Int?
   imageUrl      String?
@@ -44,10 +53,12 @@ model Vehicle {
   active        Boolean        @default(true)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   picks         VotePick[]
   images        VehicleImage[]
 
-  @@index([active])
+  @@index([eventId])
+  @@index([eventId, active])
   @@index([number])
 }
 
@@ -66,13 +77,18 @@ model VehicleImage {
 
 model Vote {
   id              String     @id @default(cuid())
-  deviceToken     String     @unique
-  fingerprintHash String     @unique
+  eventId         String
+  deviceToken     String
+  fingerprintHash String
   ipHash          String?
   userAgent       String?
   createdAt       DateTime   @default(now())
+  event           Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   picks           VotePick[]
 
+  @@unique([eventId, deviceToken])
+  @@unique([eventId, fingerprintHash])
+  @@index([eventId])
   @@index([ipHash])
 }
 

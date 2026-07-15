@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { ClipboardCheckIcon, TrophyIcon } from "@lucide/vue";
 import { RouterLink, useRoute } from "vue-router";
+import { useActiveEventSlug } from "@/composables/useActiveEvent";
 import { cn } from "@/lib/utils";
 
 const route = useRoute();
+const { activeEventSlug } = useActiveEventSlug();
 
-const tabs = [
-  { to: "/vote", label: "Abstimmung", icon: ClipboardCheckIcon, dotClass: "tab-dot-cool" },
-  { to: "/leaderboard", label: "Rangliste", icon: TrophyIcon, dotClass: "tab-dot-violet" },
-];
+const tabs = computed(() => [
+  { to: `/vote/${activeEventSlug.value}`, label: "Abstimmung", icon: ClipboardCheckIcon, dotClass: "tab-dot-cool" },
+  { to: `/leaderboard/${activeEventSlug.value}`, label: "Rangliste", icon: TrophyIcon, dotClass: "tab-dot-violet" },
+]);
 </script>
 
 <template>
@@ -25,7 +28,7 @@ const tabs = [
         :class="
           cn(
             'mobile-tab-item relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-[10px] font-medium',
-            route.path === tab.to
+            route.path === tab.to || route.path.startsWith(`${tab.to}/`)
               ? 'mobile-tab-item-active text-foreground'
               : 'text-muted-foreground active:scale-95',
           )
@@ -33,7 +36,7 @@ const tabs = [
       >
         <component :is="tab.icon" class="size-5 shrink-0" />
         <span
-          v-if="route.path === tab.to"
+          v-if="route.path === tab.to || route.path.startsWith(`${tab.to}/`)"
           :class="cn('absolute top-1.5 size-1 rounded-full', tab.dotClass)"
         />
         <span class="truncate">{{ tab.label }}</span>

@@ -36,12 +36,19 @@ export type VehicleProfileInput = {
 
 export type VotingMode = "PODIUM" | "SWIPE" | "COINS" | "DUEL";
 
-export type EventConfig = {
+export type PodiumEvent = {
+  id: string;
+  slug: string;
+  name: string;
   votingMode: VotingMode;
   coinBudget: number;
   swipeDuels: number;
+  active: boolean;
   updatedAt: string;
 };
+
+/** @deprecated Use PodiumEvent */
+export type EventConfig = PodiumEvent;
 
 export type VotePick = {
   rank: number;
@@ -89,7 +96,7 @@ export type VoteSession = {
   isNewDevice: boolean;
   hasVoted: boolean;
   vote: { picks: VotePick[] } | null;
-  config: EventConfig;
+  event: PodiumEvent;
 };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -178,57 +185,68 @@ export async function fetchAdminMe(token: string) {
   return apiGet<{ admin: AdminUser }>("/api/admin/auth/me", token);
 }
 
-export async function fetchVehicles(): Promise<Vehicle[]> {
-  const data = await request<{ vehicles: Vehicle[] }>("/api/vehicles", { cache: "no-store" });
+export async function fetchEvent(slug: string): Promise<PodiumEvent> {
+  const data = await request<{ event: PodiumEvent }>(`/api/events/${slug}`, { cache: "no-store" });
+  return data.event;
+}
+
+export async function fetchVehicles(slug: string): Promise<Vehicle[]> {
+  const data = await request<{ vehicles: Vehicle[] }>(`/api/events/${slug}/vehicles`, { cache: "no-store" });
   return data.vehicles;
 }
 
-export async function fetchEventConfig(): Promise<EventConfig> {
-  const data = await request<{ config: EventConfig }>("/api/event/config", { cache: "no-store" });
-  return data.config;
-}
-
-export async function fetchVoteSession(): Promise<VoteSession> {
-  return request<VoteSession>("/api/votes/session", { cache: "no-store" });
+export async function fetchVoteSession(slug: string): Promise<VoteSession> {
+  return request<VoteSession>(`/api/events/${slug}/votes/session`, { cache: "no-store" });
 }
 
 export async function submitVote(
+  slug: string,
   deviceToken: string,
   fingerprintHash: string,
   payload: { picks?: VotePickInput[]; duels?: DuelInput[] },
 ) {
-  return apiPost<{ vote: { picks: VotePick[] } }>("/api/votes", {
+  return apiPost<{ vote: { picks: VotePick[] } }>(`/api/events/${slug}/votes`, {
     deviceToken,
     fingerprintHash,
     ...payload,
   });
 }
 
-export async function fetchAdminEventConfig(token: string): Promise<EventConfig> {
-  const data = await request<{ config: EventConfig }>("/api/admin/event/config", {
+export async function fetchAdminEvents(token: string): Promise<PodiumEvent[]> {
+  const data = await request<{ events: PodiumEvent[] }>("/api/admin/events", {
     cache: "no-store",
     headers: authHeaders(token),
   });
-  return data.config;
+  return data.events;
 }
 
-export async function updateAdminEventConfig(
+export async function createAdminEvent(token: string, payload: { name: string; slug: string }) {
+  const data = await apiPost<{ event: PodiumEvent }>("/api/admin/events", payload, token);
+  return data.event;
+}
+
+export async function updateAdminEvent(
   token: string,
-  payload: Partial<Pick<EventConfig, "votingMode" | "coinBudget" | "swipeDuels">>,
+  eventId: string,
+  payload: Partial<Pick<PodiumEvent, "name" | "slug" | "votingMode" | "coinBudget" | "swipeDuels" | "active">>,
 ) {
-  const data = await apiPatch<{ config: EventConfig }>("/api/admin/event/config", payload, token);
-  return data.config;
+  const data = await apiPatch<{ event: PodiumEvent }>(`/api/admin/events/${eventId}`, payload, token);
+  return data.event;
 }
 
-export async function fetchAdminVoteStats(token: string) {
-  return request<{ totalVotes: number }>("/api/admin/votes/stats", {
+export async function deleteAdminEvent(token: string, eventId: string) {
+  return apiDelete<{ ok: boolean }>(`/api/admin/events/${eventId}`, token);
+}
+
+export async function fetchAdminVoteStats(token: string, eventId: string) {
+  return request<{ totalVotes: number }>(`/api/admin/events/${eventId}/votes/stats`, {
     cache: "no-store",
     headers: authHeaders(token),
   });
 }
 
-export async function resetAdminVotes(token: string) {
-  return apiPost<{ ok: boolean; deletedVotes: number }>("/api/admin/votes/reset", {}, token);
+export async function resetAdminVotes(token: string, eventId: string) {
+  return apiPost<{ ok: boolean; deletedVotes: number }>(`/api/admin/events/${eventId}/votes/reset`, {}, token);
 }
 
 export type LiveRevision = {
@@ -239,21 +257,22 @@ export type LiveRevision = {
   vehiclesAt: string | null;
 };
 
-export async function fetchLiveRevision(): Promise<LiveRevision> {
-  return request<LiveRevision>("/api/live", { cache: "no-store" });
+export async function fetchLiveRevision(slug: string): Promise<LiveRevision> {
+  return request<LiveRevision>(`/api/events/${slug}/live`, { cache: "no-store" });
 }
 
-export async function fetchLeaderboard() {
+export async function fetchLeaderboard(slug: string) {
   return request<{
+    event: PodiumEvent;
     updatedAt: string;
     totalVotes: number;
     votingMode: VotingMode;
     entries: LeaderboardEntry[];
-  }>("/api/leaderboard", { cache: "no-store" });
+  }>(`/api/events/${slug}/leaderboard`, { cache: "no-store" });
 }
 
-export async function fetchAdminVehicles(token: string): Promise<Vehicle[]> {
-  const data = await request<{ vehicles: Vehicle[] }>("/api/admin/vehicles", {
+export async function fetchAdminVehicles(token: string, eventId: string): Promise<Vehicle[]> {
+  const data = await request<{ vehicles: Vehicle[] }>(`/api/admin/events/${eventId}/vehicles`, {
     cache: "no-store",
     headers: authHeaders(token),
   });
@@ -262,6 +281,7 @@ export async function fetchAdminVehicles(token: string): Promise<Vehicle[]> {
 
 export async function createVehicle(
   token: string,
+  eventId: string,
   payload: {
     name: string;
     number?: number | null;
@@ -269,11 +289,12 @@ export async function createVehicle(
     images?: VehicleImageInput[];
   } & VehicleProfileInput,
 ) {
-  return apiPost<{ vehicle: Vehicle }>("/api/admin/vehicles", payload, token);
+  return apiPost<{ vehicle: Vehicle }>(`/api/admin/events/${eventId}/vehicles`, payload, token);
 }
 
 export async function updateVehicle(
   token: string,
+  eventId: string,
   id: string,
   payload: Partial<{
     name: string;
@@ -283,11 +304,11 @@ export async function updateVehicle(
     active: boolean;
   }> & VehicleProfileInput,
 ) {
-  return apiPatch<{ vehicle: Vehicle }>(`/api/admin/vehicles/${id}`, payload, token);
+  return apiPatch<{ vehicle: Vehicle }>(`/api/admin/events/${eventId}/vehicles/${id}`, payload, token);
 }
 
-export async function deleteVehicle(token: string, id: string) {
-  return apiDelete<{ ok: boolean }>(`/api/admin/vehicles/${id}`, token);
+export async function deleteVehicle(token: string, eventId: string, id: string) {
+  return apiDelete<{ ok: boolean }>(`/api/admin/events/${eventId}/vehicles/${id}`, token);
 }
 
 export async function uploadVehicleImage(token: string, file: File) {
@@ -307,8 +328,61 @@ export function assetUrl(path: string | null | undefined): string | null {
   return `${API_BASE}${path}`;
 }
 
-export function eventVoteUrl(): string {
-  const configured = import.meta.env.VITE_PUBLIC_APP_URL?.trim();
-  const base = configured || window.location.origin;
-  return `${base.replace(/\/$/, "")}/vote`;
+import {
+  copyTextToClipboard,
+  DEFAULT_EVENT_SLUG,
+  eventLeaderboardUrl,
+  eventShareText,
+  eventVoteUrl,
+  getPublicAppBase,
+  getPublicAppUrlOverride,
+  isUnshareableAppUrl,
+  setPublicAppUrlOverride,
+  shareEventLinks,
+  canUseNativeShare,
+} from "@/lib/event-share";
+
+export {
+  copyTextToClipboard,
+  DEFAULT_EVENT_SLUG,
+  eventLeaderboardUrl,
+  eventShareText,
+  eventVoteUrl,
+  getPublicAppBase,
+  getPublicAppUrlOverride,
+  isUnshareableAppUrl,
+  setPublicAppUrlOverride,
+  shareEventLinks,
+  canUseNativeShare,
+};
+
+export function normalizeEventSlugInput(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+}
+
+/** @deprecated Use fetchEvent */
+export async function fetchEventConfig(slug: string = DEFAULT_EVENT_SLUG): Promise<PodiumEvent> {
+  return fetchEvent(slug);
+}
+
+/** @deprecated Use updateAdminEvent */
+export async function updateAdminEventConfig(
+  token: string,
+  eventId: string,
+  payload: Partial<Pick<PodiumEvent, "votingMode" | "coinBudget" | "swipeDuels">>,
+) {
+  return updateAdminEvent(token, eventId, payload);
+}
+
+/** @deprecated Use fetchAdminEvents */
+export async function fetchAdminEventConfig(token: string, eventId: string): Promise<PodiumEvent> {
+  const events = await fetchAdminEvents(token);
+  const event = events.find((entry) => entry.id === eventId);
+  if (!event) throw new Error("Event nicht gefunden.");
+  return event;
 }
