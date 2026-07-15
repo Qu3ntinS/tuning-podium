@@ -4,6 +4,12 @@ import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+const repoRoot = path.resolve(__dirname, "../..");
+const usePolling =
+  process.env.VITE_USE_POLLING === "true" ||
+  process.env.CHOKIDAR_USEPOLLING === "true" ||
+  process.platform === "linux";
+
 export default defineConfig({
   plugins: [
     vue({
@@ -77,6 +83,16 @@ export default defineConfig({
     },
   },
   server: {
+    watch: {
+      usePolling,
+      interval: usePolling ? 1000 : undefined,
+      ignored: [
+        "**/.git/**",
+        "**/.bun/**",
+        `${repoRoot}/node_modules/**`,
+        `${repoRoot}/apps/api/**`,
+      ],
+    },
     proxy: {
       "/api": {
         target: "http://localhost:3001",

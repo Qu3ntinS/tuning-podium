@@ -16,7 +16,6 @@ useClickSounds();
 
 const toastTheme = computed(() => (isDark.value ? "dark" : "light"));
 const settingsOpen = ref(false);
-const openAdminInSettings = ref(false);
 
 const navItems = [
   { to: "/vote", label: "Abstimmung" },
@@ -27,22 +26,12 @@ watch(
   () => route.query.admin,
   (value) => {
     if (value) {
-      settingsOpen.value = true;
-      openAdminInSettings.value = true;
+      const { admin: _admin, ...rest } = route.query;
+      router.replace({ path: "/admin", query: rest });
     }
   },
   { immediate: true },
 );
-
-watch(settingsOpen, (open) => {
-  if (!open) {
-    openAdminInSettings.value = false;
-    if (route.query.admin) {
-      const { admin: _admin, ...rest } = route.query;
-      router.replace({ path: route.path, query: rest });
-    }
-  }
-});
 </script>
 
 <template>
@@ -90,7 +79,7 @@ watch(settingsOpen, (open) => {
         </nav>
 
         <div class="flex shrink-0 items-center">
-          <SettingsSheet v-model:open="settingsOpen" :open-admin="openAdminInSettings" />
+          <SettingsSheet v-model:open="settingsOpen" />
         </div>
       </div>
     </header>
