@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { toast } from "vue-sonner";
+import { toast } from "@/lib/toast";
 import LeaderboardChart from "@/components/leaderboard/LeaderboardChart.vue";
 import LeaderboardPodium from "@/components/leaderboard/LeaderboardPodium.vue";
 import PageHeader from "@/components/layout/PageHeader.vue";

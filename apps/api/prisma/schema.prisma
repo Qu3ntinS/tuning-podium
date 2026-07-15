@@ -11,6 +11,7 @@ enum VotingMode {
   PODIUM
   SWIPE
   COINS
+  DUEL
 }
 
 model EventConfig {
@@ -31,7 +32,7 @@ model Admin {
 }
 
 model Vehicle {
-  id            String     @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String
   number        Int?
   imageUrl      String?
@@ -40,13 +41,27 @@ model Vehicle {
   tiktokUrl     String?
   youtubeUrl    String?
   websiteUrl    String?
-  active        Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  picks     VotePick[]
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  picks         VotePick[]
+  images        VehicleImage[]
 
   @@index([active])
   @@index([number])
+}
+
+model VehicleImage {
+  id        String   @id @default(cuid())
+  vehicleId String
+  url       String
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([vehicleId, sortOrder])
 }
 
 model Vote {

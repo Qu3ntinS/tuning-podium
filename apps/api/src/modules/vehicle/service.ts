@@ -1,10 +1,52 @@
 import { status } from "elysia";
 import { prisma } from "../../lib/prisma.js";
 import {
+  ensureLegacyImageMigrated,
+  replaceVehicleImages,
+  vehicleImageSelect,
+  type VehicleImageInput,
+} from "../../lib/vehicle-images.js";
+import {
   normalizeVehicleProfile,
   type VehicleProfileInput,
   vehiclePublicSelect,
 } from "../../lib/vehicle-profile.js";
+
+const adminVehicleSelect = {
+  id: true,
+  name: true,
+  number: true,
+  imageUrl: true,
+  description: true,
+  instagramUrl: true,
+  tiktokUrl: true,
+  youtubeUrl: true,
+  websiteUrl: true,
+  active: true,
+  createdAt: true,
+  updatedAt: true,
+  images: {
+    select: vehicleImageSelect,
+    orderBy: { sortOrder: "asc" as const },
+  },
+} as const;
+
+function imagesFromBody(
+  images: VehicleImageInput[] | undefined,
+  imageUrl: string | null | undefined,
+): VehicleImageInput[] | null {
+  if (images !== undefined) return images;
+  if (imageUrl === undefined) return null;
+  if (!imageUrl?.trim()) return [];
+  return [{ url: imageUrl, isPrimary: true, sortOrder: 0 }];
+}
+
+async function loadAdminVehicle(id: string) {
+  return prisma.vehicle.findUnique({
+    where: { id },
+    select: adminVehicleSelect,
+  });
+}
 
 export abstract class VehicleService {
   static async listActive() {
@@ -32,27 +74,40 @@ export abstract class VehicleService {
   static async listAll() {
     const vehicles = await prisma.vehicle.findMany({
       orderBy: [{ number: "asc" }, { name: "asc" }],
+      select: adminVehicleSelect,
     });
     return { vehicles };
   }
 
-  static async create(input: {
-    name: string;
-    number?: number | null;
-    imageUrl?: string | null;
-    active?: boolean;
-  } & VehicleProfileInput) {
+  static async create(
+    input: {
+      name: string;
+      number?: number | null;
+      imageUrl?: string | null;
+      images?: VehicleImageInput[];
+      active?: boolean;
+    } & VehicleProfileInput,
+  ) {
     const profile = normalizeVehicleProfile(input);
+    const imagePayload = imagesFromBody(input.images, input.imageUrl);
+
     const vehicle = await prisma.vehicle.create({
       data: {
         name: input.name.trim(),
         number: input.number ?? null,
-        imageUrl: input.imageUrl?.trim() || null,
+        imageUrl: null,
         active: input.active ?? true,
         ...profile,
       },
+      select: { id: true },
     });
-    return status(201, { vehicle });
+
+    if (imagePayload) {
+      await replaceVehicleImages(vehicle.id, imagePayload);
+    }
+
+    const created = await loadAdminVehicle(vehicle.id);
+    return status(201, { vehicle: created });
   }
 
   static async update(
@@ -61,6 +116,7 @@ export abstract class VehicleService {
       name: string;
       number: number | null;
       imageUrl: string | null;
+      images: VehicleImageInput[];
       active: boolean;
     }> &
       VehicleProfileInput,
@@ -85,17 +141,25 @@ export abstract class VehicleService {
           })
         : null;
 
-    const vehicle = await prisma.vehicle.update({
+    const imagePayload = imagesFromBody(input.images, input.imageUrl);
+
+    await prisma.vehicle.update({
       where: { id },
       data: {
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
         ...(input.number !== undefined ? { number: input.number } : {}),
-        ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl?.trim() || null } : {}),
         ...(input.active !== undefined ? { active: input.active } : {}),
         ...(profile ?? {}),
       },
     });
 
+    if (imagePayload) {
+      await replaceVehicleImages(id, imagePayload);
+    } else if (input.imageUrl === undefined && input.images === undefined) {
+      await ensureLegacyImageMigrated(id, existing.imageUrl);
+    }
+
+    const vehicle = await loadAdminVehicle(id);
     return { vehicle };
   }
 

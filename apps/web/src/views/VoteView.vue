@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { toast } from "vue-sonner";
+import { toast } from "@/lib/toast";
 import PageHeader from "@/components/layout/PageHeader.vue";
 import { Skeleton } from "@/components/ui/skeleton";
 import VoteCoinsFlow from "@/components/vote/VoteCoinsFlow.vue";
 import VoteDoneCard from "@/components/vote/VoteDoneCard.vue";
 import VotePodiumFlow from "@/components/vote/VotePodiumFlow.vue";
+import VoteDuelFlow from "@/components/vote/VoteDuelFlow.vue";
 import VoteSwipeFlow from "@/components/vote/VoteSwipeFlow.vue";
 import { useLiveRefresh } from "@/composables/useLiveRefresh";
 import { createDeviceFingerprint } from "@/composables/useDeviceFingerprint";
@@ -113,6 +114,14 @@ useLiveRefresh({
       />
       <VoteCoinsFlow
         v-else-if="eventConfig.votingMode === 'COINS'"
+        :vehicles="vehicles"
+        :device-token="deviceToken"
+        :fingerprint-hash="fingerprintHash"
+        :config="eventConfig"
+        @done="handleDone"
+      />
+      <VoteDuelFlow
+        v-else-if="eventConfig.votingMode === 'DUEL'"
         :vehicles="vehicles"
         :device-token="deviceToken"
         :fingerprint-hash="fingerprintHash"

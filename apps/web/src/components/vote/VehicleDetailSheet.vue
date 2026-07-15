@@ -8,7 +8,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { assetUrl, type Vehicle } from "@/lib/api";
+import VehicleImageGallery from "@/components/vote/VehicleImageGallery.vue";
+import { type Vehicle } from "@/lib/api";
+import { vehicleImages } from "@/lib/vehicle-images";
 import {
   hasVehicleProfile,
   vehicleSocialLinks,
@@ -26,7 +28,8 @@ const props = defineProps<{
   vehicle: Vehicle | null;
 }>();
 
-const imageSrc = computed(() => assetUrl(props.vehicle?.imageUrl));
+const images = computed(() => vehicleImages(props.vehicle));
+const hasImages = computed(() => images.value.length > 0);
 const colorClass = computed(() =>
   props.vehicle ? vehicleColorClass(props.vehicle.id) : "",
 );
@@ -41,11 +44,12 @@ const showProfile = computed(() => props.vehicle && hasVehicleProfile(props.vehi
     <SheetContent side="bottom" class="vehicle-profile-sheet" :show-close-button="true">
       <template v-if="vehicle && showProfile">
         <div class="vehicle-profile-hero">
-          <img
-            v-if="imageSrc"
-            :src="imageSrc"
+          <VehicleImageGallery
+            v-if="hasImages"
+            :images="images"
             :alt="vehicle.name"
-            class="size-full object-cover"
+            variant="hero"
+            :show-dots="true"
           />
           <div
             v-else
@@ -55,8 +59,10 @@ const showProfile = computed(() => props.vehicle && hasVehicleProfile(props.vehi
               {{ vehicleShortLabel(vehicle) }}
             </span>
           </div>
-          <div class="vehicle-profile-hero-scrim" />
-          <div class="vehicle-profile-hero-copy">
+        </div>
+
+        <div class="vehicle-profile-body">
+          <div class="vehicle-profile-head">
             <p v-if="vehicle.number" class="vehicle-profile-kicker">#{{ vehicle.number }}</p>
             <SheetHeader class="p-0 text-left">
               <SheetTitle class="vehicle-profile-title">{{ vehicle.name }}</SheetTitle>
@@ -65,9 +71,7 @@ const showProfile = computed(() => props.vehicle && hasVehicleProfile(props.vehi
               </SheetDescription>
             </SheetHeader>
           </div>
-        </div>
 
-        <div class="vehicle-profile-body">
           <p v-if="vehicle.description?.trim()" class="vehicle-profile-description">
             {{ vehicle.description }}
           </p>

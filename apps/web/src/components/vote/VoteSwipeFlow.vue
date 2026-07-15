@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { toast } from "vue-sonner";
+import { computed, ref } from "vue";
+import { toast } from "@/lib/toast";
 import SurfaceCard from "@/components/layout/SurfaceCard.vue";
-import SwipeDuelStack from "@/components/vote/SwipeDuelStack.vue";
+import SwipeRatingStack from "@/components/vote/SwipeRatingStack.vue";
 import VehicleDetailSheet from "@/components/vote/VehicleDetailSheet.vue";
-import { submitVote, type DuelInput, type EventConfig, type Vehicle, type VotePick } from "@/lib/api";
-import { buildSwipeDuels } from "@/lib/voting-modes";
+import { submitVote, type EventConfig, type Vehicle, type VotePick } from "@/lib/api";
 
 const props = defineProps<{
   vehicles: Vehicle[];
@@ -19,38 +18,34 @@ const emit = defineEmits<{
 }>();
 
 const submitting = ref(false);
-const duelIndex = ref(0);
-const duels = ref<[Vehicle, Vehicle][]>([]);
-const results = ref<DuelInput[]>([]);
+const vehicleIndex = ref(0);
+const ratings = ref<Array<{ vehicleId: string; points: number }>>([]);
 const profileVehicle = ref<Vehicle | null>(null);
 const profileOpen = ref(false);
 
-const currentDuel = computed(() => duels.value[duelIndex.value] ?? null);
-const progress = computed(() =>
-  duels.value.length ? Math.round((results.value.length / duels.value.length) * 100) : 0,
+const sortedVehicles = computed(() =>
+  [...props.vehicles].sort((a, b) => (a.number ?? 0) - (b.number ?? 0) || a.name.localeCompare(b.name)),
 );
-const isComplete = computed(() => results.value.length === duels.value.length && duels.value.length > 0);
 
-onMounted(() => {
-  duels.value = buildSwipeDuels(props.vehicles, props.config.swipeDuels);
-});
+const currentVehicle = computed(() => sortedVehicles.value[vehicleIndex.value] ?? null);
+const nextVehicle = computed(() => sortedVehicles.value[vehicleIndex.value + 1] ?? null);
+const totalVehicles = computed(() => sortedVehicles.value.length);
+const progress = computed(() =>
+  totalVehicles.value ? Math.round((ratings.value.length / totalVehicles.value) * 100) : 0,
+);
 
 function handleVehicleInfo(vehicle: Vehicle) {
   profileVehicle.value = vehicle;
   profileOpen.value = true;
 }
 
-function pickWinner(side: "left" | "right") {
-  const duel = currentDuel.value;
-  if (!duel || submitting.value) return;
+function rate(liked: boolean) {
+  const vehicle = currentVehicle.value;
+  if (!vehicle || submitting.value) return;
 
-  const [left, right] = duel;
-  const winner = side === "left" ? left : right;
-  const loser = side === "left" ? right : left;
-
-  results.value.push({ winnerId: winner.id, loserId: loser.id });
-  if (duelIndex.value < duels.value.length - 1) {
-    duelIndex.value += 1;
+  ratings.value.push({ vehicleId: vehicle.id, points: liked ? 1 : 0 });
+  if (vehicleIndex.value < sortedVehicles.value.length - 1) {
+    vehicleIndex.value += 1;
     return;
   }
 
@@ -58,17 +53,17 @@ function pickWinner(side: "left" | "right") {
 }
 
 async function handleSubmit() {
-  if (!isComplete.value || submitting.value) return;
+  if (ratings.value.length !== totalVehicles.value || submitting.value) return;
 
   submitting.value = true;
   try {
-    const result = await submitVote(props.deviceToken, props.fingerprintHash, { duels: results.value });
+    const result = await submitVote(props.deviceToken, props.fingerprintHash, { picks: ratings.value });
     emit("done", result.vote.picks);
     toast.success("Stimme übermittelt.");
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Abstimmung fehlgeschlagen.");
-    duelIndex.value = Math.max(0, results.value.length - 1);
-    results.value = results.value.slice(0, -1);
+    ratings.value = ratings.value.slice(0, -1);
+    vehicleIndex.value = Math.max(0, ratings.value.length);
   } finally {
     submitting.value = false;
   }
@@ -77,8 +72,8 @@ async function handleSubmit() {
 
 <template>
   <SurfaceCard
-    :title="`Duell ${results.length + 1} / ${config.swipeDuels}`"
-    description="Rechts wählen · Links überspringen"
+    :title="`Fahrzeug ${ratings.length + 1} / ${totalVehicles}`"
+    description="Rechts = Like · Links = Dislike"
     glow
   >
     <div class="flex flex-col gap-4">
@@ -89,16 +84,16 @@ async function handleSubmit() {
         />
       </div>
 
-      <div v-if="vehicles.length < 2" class="vote-empty-state">
-        Mindestens zwei Fahrzeuge erforderlich.
+      <div v-if="totalVehicles < 1" class="vote-empty-state">
+        Mindestens ein Fahrzeug erforderlich.
       </div>
 
-      <SwipeDuelStack
-        v-else-if="currentDuel"
-        :left="currentDuel[0]"
-        :right="currentDuel[1]"
+      <SwipeRatingStack
+        v-else-if="currentVehicle"
+        :current="currentVehicle"
+        :next="nextVehicle"
         :disabled="submitting"
-        @pick="pickWinner"
+        @rate="rate"
         @info="handleVehicleInfo"
       />
     </div>

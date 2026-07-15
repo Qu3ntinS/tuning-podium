@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import MobileTabBar from "@/components/layout/MobileTabBar.vue";
+import ConfirmDialog from "@/components/shared/ConfirmDialog.vue";
 import SettingsSheet from "@/components/settings/SettingsSheet.vue";
 import { Toaster } from "@/components/ui/sonner";
 import { useClickSounds } from "@/composables/useSounds";
@@ -35,7 +36,7 @@ watch(
 </script>
 
 <template>
-  <div class="relative min-h-dvh overflow-x-hidden text-foreground">
+  <div class="relative min-h-dvh text-foreground">
     <div aria-hidden="true" class="pointer-events-none fixed inset-0 -z-20 bg-background" />
 
     <div aria-hidden="true" class="mesh-backdrop pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -43,9 +44,10 @@ watch(
       <div class="mesh-orb mesh-orb-b" />
       <div class="mesh-orb mesh-orb-c" />
       <div class="mesh-grid absolute inset-0" />
+      <div class="mesh-sheen absolute inset-0" />
     </div>
 
-    <header class="app-header sticky top-0 z-50 bg-background/82 backdrop-blur-xl">
+    <header class="app-header">
       <div class="header-glow pointer-events-none absolute inset-x-0 bottom-0 h-px" />
       <div class="app-header-inner mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-5 lg:px-6">
         <RouterLink to="/vote" class="group flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-90 sm:gap-3">
@@ -94,14 +96,23 @@ watch(
 
     <MobileTabBar />
 
+    <ConfirmDialog />
+
     <Toaster
       :theme="toastTheme"
-      position="bottom-right"
-      :close-button="true"
-      :visible-toasts="3"
+      position="bottom-center"
+      :close-button="false"
+      :visible-toasts="2"
       :expand="false"
-      :gap="8"
-      :toast-options="{ duration: 3200 }"
+      :gap="10"
+      :duration="4000"
+      :offset="{ bottom: '1rem', right: '1rem' }"
+      :mobile-offset="{
+        bottom: '6.25rem',
+        left: '1rem',
+        right: '1rem',
+      }"
+      :toast-options="{ duration: 4000, closeButton: false }"
       class="!z-[90]"
     />
   </div>

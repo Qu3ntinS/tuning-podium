@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { toast } from "vue-sonner";
+import { toast } from "@/lib/toast";
 import SurfaceCard from "@/components/layout/SurfaceCard.vue";
 import { Button } from "@/components/ui/button";
 import PodiumBar from "@/components/vote/PodiumBar.vue";

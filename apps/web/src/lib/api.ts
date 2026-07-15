@@ -1,14 +1,29 @@
+export type VehicleImage = {
+  id: string;
+  url: string;
+  isPrimary: boolean;
+  sortOrder: number;
+};
+
 export type Vehicle = {
   id: string;
   name: string;
   number: number | null;
   imageUrl: string | null;
+  images?: VehicleImage[];
   description?: string | null;
   instagramUrl?: string | null;
   tiktokUrl?: string | null;
   youtubeUrl?: string | null;
   websiteUrl?: string | null;
   active?: boolean;
+};
+
+export type VehicleImageInput = {
+  id?: string;
+  url: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
 };
 
 export type VehicleProfileInput = {
@@ -19,7 +34,7 @@ export type VehicleProfileInput = {
   websiteUrl?: string | null;
 };
 
-export type VotingMode = "PODIUM" | "SWIPE" | "COINS";
+export type VotingMode = "PODIUM" | "SWIPE" | "COINS" | "DUEL";
 
 export type EventConfig = {
   votingMode: VotingMode;
@@ -37,6 +52,7 @@ export type VotePick = {
     | "name"
     | "number"
     | "imageUrl"
+    | "images"
     | "description"
     | "instagramUrl"
     | "tiktokUrl"
@@ -250,6 +266,7 @@ export async function createVehicle(
     name: string;
     number?: number | null;
     imageUrl?: string | null;
+    images?: VehicleImageInput[];
   } & VehicleProfileInput,
 ) {
   return apiPost<{ vehicle: Vehicle }>("/api/admin/vehicles", payload, token);
@@ -262,8 +279,9 @@ export async function updateVehicle(
     name: string;
     number: number | null;
     imageUrl: string | null;
+    images: VehicleImageInput[];
     active: boolean;
-  } & VehicleProfileInput>,
+  }> & VehicleProfileInput,
 ) {
   return apiPatch<{ vehicle: Vehicle }>(`/api/admin/vehicles/${id}`, payload, token);
 }

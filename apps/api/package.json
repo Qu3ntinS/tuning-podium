@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "postinstall": "prisma generate",
-    "dev": "bun --watch src/server.ts",
+    "dev": "prisma generate && bun --watch src/server.ts",
     "start": "bun src/server.ts",
     "build": "bun run typecheck",
     "typecheck": "tsc --noEmit",

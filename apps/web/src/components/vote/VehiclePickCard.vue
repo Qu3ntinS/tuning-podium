@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import VehicleDetailSheet from "@/components/vote/VehicleDetailSheet.vue";
 import { assetUrl, type Vehicle } from "@/lib/api";
+import { primaryVehicleImageUrl } from "@/lib/vehicle-images";
 import { hasVehicleProfile } from "@/lib/vehicle-profile";
 import { vehicleColorClass, vehicleDisplayName, vehicleShortLabel } from "@/lib/vehicle-visual";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,8 @@ const emit = defineEmits<{
 
 const detailOpen = ref(false);
 
-const imageSrc = computed(() => assetUrl(props.vehicle.imageUrl));
+const primaryImageSrc = computed(() => assetUrl(primaryVehicleImageUrl(props.vehicle)));
+const hasImage = computed(() => Boolean(primaryImageSrc.value));
 const colorClass = computed(() => vehicleColorClass(props.vehicle.id));
 const showProfile = computed(() => hasVehicleProfile(props.vehicle));
 
@@ -73,8 +75,8 @@ function openProfile() {
         "
       >
         <img
-          v-if="imageSrc"
-          :src="imageSrc"
+          v-if="hasImage"
+          :src="primaryImageSrc!"
           :alt="vehicle.name"
           class="size-full object-cover transition-transform duration-400 group-hover:scale-[1.03]"
         />
@@ -96,7 +98,7 @@ function openProfile() {
 
         <Badge
           v-if="selectedRank"
-          class="absolute top-2 right-2 border-0 bg-primary text-primary-foreground shadow-md"
+          class="absolute top-2 right-2 z-10 border-0 bg-primary text-primary-foreground shadow-md"
         >
           {{ selectedRank }}
         </Badge>

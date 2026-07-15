@@ -17,7 +17,12 @@ export const SharedModel = {
   ok: t.Object({
     ok: t.Literal(true),
   }),
-  votingMode: t.Union([t.Literal("PODIUM"), t.Literal("SWIPE"), t.Literal("COINS")]),
+  votingMode: t.Union([
+    t.Literal("PODIUM"),
+    t.Literal("SWIPE"),
+    t.Literal("COINS"),
+    t.Literal("DUEL"),
+  ]),
 } as const;
 
 export type SharedError = typeof SharedModel.error.static;

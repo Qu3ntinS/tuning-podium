@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import QRCode from "qrcode";
 import {
   CarIcon,
+  ChevronRightIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   PlusIcon,
@@ -11,7 +12,8 @@ import {
   Trash2Icon,
   VoteIcon,
 } from "@lucide/vue";
-import { toast } from "vue-sonner";
+import { toast } from "@/lib/toast";
+import { confirm } from "@/lib/confirm";
 import AdminLoginForm from "@/components/admin/AdminLoginForm.vue";
 import VehicleAdminSheet, { type VehicleFormState } from "@/components/admin/VehicleAdminSheet.vue";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +43,11 @@ import {
   type VotingMode,
 } from "@/lib/api";
 import { VOTING_MODE_META } from "@/lib/voting-modes";
+import {
+  appendVehicleImages,
+  normalizeVehicleImageDrafts,
+  vehicleImagesFromVehicle,
+} from "@/lib/vehicle-images";
 import {
   EMPTY_VEHICLE_PROFILE,
   vehicleProfileFromVehicle,
@@ -87,7 +94,7 @@ const settingsForm = ref({
 const vehicleForm = ref<VehicleFormState>({
   name: "",
   number: "",
-  imageUrl: "",
+  images: [],
   ...EMPTY_VEHICLE_PROFILE,
 });
 
@@ -101,13 +108,13 @@ const sections: Array<{ id: AdminSection; label: string; icon: typeof LayoutDash
   { id: "share", label: "Teilen", icon: QrCodeIcon },
 ];
 
-const modeOptions: VotingMode[] = ["PODIUM", "COINS", "SWIPE"];
+const modeOptions: VotingMode[] = ["PODIUM", "COINS", "DUEL", "SWIPE"];
 
 function resetVehicleForm() {
   vehicleForm.value = {
     name: "",
     number: "",
-    imageUrl: "",
+    images: [],
     ...EMPTY_VEHICLE_PROFILE,
   };
 }
@@ -126,7 +133,7 @@ function openEditVehicle(vehicle: Vehicle) {
   vehicleForm.value = {
     name: vehicle.name,
     number: vehicle.number?.toString() ?? "",
-    imageUrl: vehicle.imageUrl ?? "",
+    images: vehicleImagesFromVehicle(vehicle),
     ...vehicleProfileFromVehicle(vehicle),
   };
   vehicleSheetOpen.value = true;
@@ -202,9 +209,13 @@ async function loadVoteStats() {
 async function handleResetVotes() {
   if (!accessToken.value) return;
 
-  const confirmed = confirm(
-    `Alle ${totalVotes.value} Stimmen wirklich löschen?\n\nBesucher können danach erneut abstimmen.`,
-  );
+  const confirmed = await confirm({
+    title: `Alle ${totalVotes.value} Stimmen wirklich löschen?`,
+    description: "Besucher können danach erneut abstimmen.",
+    confirmLabel: "Löschen",
+    cancelLabel: "Abbrechen",
+    destructive: true,
+  });
   if (!confirmed) return;
 
   resettingVotes.value = true;
@@ -262,20 +273,18 @@ async function loadVehicles() {
   }
 }
 
-async function handleVehicleImageSelect(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file || !accessToken.value) return;
+async function handleVehicleImagesSelect(files: File[]) {
+  if (!accessToken.value || files.length === 0) return;
 
   uploading.value = true;
   try {
-    vehicleForm.value.imageUrl = await uploadImageFile(file);
-    toast.success("Bild hochgeladen.");
+    const uploadedUrls = await Promise.all(files.map((file) => uploadImageFile(file)));
+    vehicleForm.value.images = appendVehicleImages(vehicleForm.value.images, uploadedUrls);
+    toast.success(uploadedUrls.length === 1 ? "Bild hochgeladen." : `${uploadedUrls.length} Bilder hochgeladen.`);
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Upload fehlgeschlagen.");
   } finally {
     uploading.value = false;
-    input.value = "";
   }
 }
 
@@ -285,10 +294,11 @@ async function handleVehicleSave() {
   savingVehicle.value = true;
   try {
     const number = vehicleForm.value.number ? Number(vehicleForm.value.number) : null;
+    const images = normalizeVehicleImageDrafts(vehicleForm.value.images);
     const payload = {
       name: vehicleForm.value.name.trim(),
       number: Number.isFinite(number) ? number : null,
-      imageUrl: vehicleForm.value.imageUrl.trim() || null,
+      images,
       ...vehicleProfilePayload(vehicleForm.value),
     };
 
@@ -323,7 +333,14 @@ async function toggleActive(vehicle: Vehicle) {
 
 async function handleDelete(vehicle: Vehicle) {
   if (!accessToken.value) return;
-  if (!confirm(`„${vehicle.name}" wirklich löschen?`)) return;
+
+  const confirmed = await confirm({
+    title: `„${vehicle.name}" wirklich löschen?`,
+    confirmLabel: "Löschen",
+    cancelLabel: "Abbrechen",
+    destructive: true,
+  });
+  if (!confirmed) return;
 
   try {
     await deleteVehicle(accessToken.value, vehicle.id);
@@ -454,64 +471,90 @@ defineExpose({ initialize });
       </div>
 
       <section v-if="activeSection === 'overview'" class="admin-section admin-overview-section content-panel">
-        <div class="panel-head">
-          <h2 class="panel-title">Übersicht</h2>
-          <p class="panel-description">Status und Schnellzugriffe für dein Event.</p>
+        <div class="panel-head admin-overview-head">
+          <div>
+            <h2 class="panel-title">Übersicht</h2>
+            <p class="panel-description">{{ activeVehicles }} von {{ vehicles.length }} Fahrzeugen aktiv</p>
+          </div>
+          <Badge variant="secondary" class="admin-overview-mode-badge shrink-0">
+            {{ modeMeta.label }}
+          </Badge>
         </div>
+
         <div class="panel-body admin-overview-layout">
-          <div class="admin-overview-stats">
-            <div class="admin-stat-grid">
-              <article class="admin-stat-card admin-stat-card-cool">
-                <p class="admin-stat-label">Stimmen</p>
-                <p class="admin-stat-value">{{ totalVotes }}</p>
-              </article>
-              <article class="admin-stat-card admin-stat-card-violet">
-                <p class="admin-stat-label">Fahrzeuge</p>
-                <p class="admin-stat-value">{{ vehicles.length }}</p>
-              </article>
-              <article class="admin-stat-card admin-stat-card-mint">
-                <p class="admin-stat-label">Aktiv</p>
-                <p class="admin-stat-value">{{ activeVehicles }}</p>
-              </article>
-              <article class="admin-stat-card">
-                <p class="admin-stat-label">Modus</p>
-                <p class="admin-stat-value admin-stat-value-text">{{ modeMeta.label }}</p>
-              </article>
-            </div>
+          <div class="admin-overview-kpis">
+            <article class="admin-stat-card admin-stat-featured admin-stat-card-cool">
+              <p class="admin-stat-label">Stimmen gesamt</p>
+              <p class="admin-stat-value admin-stat-value-featured">{{ totalVotes }}</p>
+              <p class="admin-stat-hint">Alle eingegangenen Abstimmungen</p>
+            </article>
+
+            <article class="admin-stat-card admin-stat-vehicles admin-stat-card-violet">
+              <p class="admin-stat-label">Fahrzeuge</p>
+              <p class="admin-stat-value">{{ vehicles.length }}</p>
+            </article>
+
+            <article class="admin-stat-card admin-stat-active admin-stat-card-mint">
+              <p class="admin-stat-label">Aktiv</p>
+              <p class="admin-stat-value">{{ activeVehicles }}</p>
+            </article>
+
+            <article class="admin-stat-card admin-stat-mode">
+              <p class="admin-stat-label">Abstimmungsmodus</p>
+              <p class="admin-stat-value admin-stat-value-text">{{ modeMeta.label }}</p>
+              <p class="admin-stat-hint">{{ modeMeta.hint }}</p>
+            </article>
           </div>
 
           <div class="admin-overview-actions">
             <p class="admin-overview-actions-label">Schnellzugriff</p>
-            <div class="admin-quick-grid">
+            <div class="admin-overview-link-list">
               <Button
                 type="button"
                 variant="outline"
-                class="admin-choice-card"
+                class="admin-overview-link"
                 @click="activeSection = 'event'"
               >
-                <Settings2Icon />
-                <span class="admin-choice-title">Abstimmung</span>
-                <span class="admin-choice-meta">{{ modeMeta.label }}</span>
+                <span class="admin-overview-link-icon admin-overview-link-icon-cool">
+                  <Settings2Icon />
+                </span>
+                <span class="admin-overview-link-copy">
+                  <span class="admin-overview-link-title">Abstimmung</span>
+                  <span class="admin-overview-link-meta">{{ modeMeta.label }}</span>
+                </span>
+                <ChevronRightIcon class="admin-overview-link-chevron" />
               </Button>
+
               <Button
                 type="button"
                 variant="outline"
-                class="admin-choice-card"
+                class="admin-overview-link"
                 @click="openCreateVehicle"
               >
-                <PlusIcon />
-                <span class="admin-choice-title">Fahrzeug</span>
-                <span class="admin-choice-meta">Neu anlegen</span>
+                <span class="admin-overview-link-icon admin-overview-link-icon-violet">
+                  <PlusIcon />
+                </span>
+                <span class="admin-overview-link-copy">
+                  <span class="admin-overview-link-title">Fahrzeug anlegen</span>
+                  <span class="admin-overview-link-meta">Neues Teilnehmerfahrzeug</span>
+                </span>
+                <ChevronRightIcon class="admin-overview-link-chevron" />
               </Button>
+
               <Button
                 type="button"
                 variant="outline"
-                class="admin-choice-card"
+                class="admin-overview-link"
                 @click="activeSection = 'share'"
               >
-                <QrCodeIcon />
-                <span class="admin-choice-title">QR-Code</span>
-                <span class="admin-choice-meta">Teilen</span>
+                <span class="admin-overview-link-icon admin-overview-link-icon-mint">
+                  <QrCodeIcon />
+                </span>
+                <span class="admin-overview-link-copy">
+                  <span class="admin-overview-link-title">Event teilen</span>
+                  <span class="admin-overview-link-meta">QR-Code & Link</span>
+                </span>
+                <ChevronRightIcon class="admin-overview-link-chevron" />
               </Button>
             </div>
           </div>
@@ -523,7 +566,7 @@ defineExpose({ initialize });
           <h2 class="panel-title">Abstimmungsmodus</h2>
           <p class="panel-description">Wähle, wie Besucher abstimmen.</p>
         </div>
-        <div class="panel-body">
+        <div class="panel-body admin-settings-stack">
           <div class="admin-mode-grid">
             <Button
               v-for="mode in modeOptions"
@@ -549,8 +592,8 @@ defineExpose({ initialize });
                 max="100"
               />
             </Field>
-            <Field v-if="settingsForm.votingMode === 'SWIPE'">
-              <FieldLabel for="swipe-duels">Anzahl Vergleiche</FieldLabel>
+            <Field v-if="settingsForm.votingMode === 'DUEL'">
+              <FieldLabel for="swipe-duels">Anzahl Duelle</FieldLabel>
               <Input
                 id="swipe-duels"
                 v-model.number="settingsForm.swipeDuels"
@@ -558,6 +601,12 @@ defineExpose({ initialize });
                 min="4"
                 max="40"
               />
+            </Field>
+            <Field v-if="settingsForm.votingMode === 'SWIPE'">
+              <p class="text-sm text-muted-foreground">
+                Jedes aktive Fahrzeug wird einmal angezeigt. Like = 1 Punkt, Dislike = 0 Punkte.
+                Die Rangliste sortiert nach Gesamt-Likes.
+              </p>
             </Field>
           </FieldGroup>
 
@@ -644,14 +693,14 @@ defineExpose({ initialize });
                 </Badge>
               </div>
 
-              <div class="admin-actions admin-actions-row">
-                <Button variant="outline" @click="openEditVehicle(vehicle)">
+              <div class="admin-vehicle-actions">
+                <Button variant="outline" size="sm" @click="openEditVehicle(vehicle)">
                   Bearbeiten
                 </Button>
-                <Button variant="outline" @click="toggleActive(vehicle)">
-                  {{ vehicle.active ? "Deaktivieren" : "Aktivieren" }}
+                <Button variant="outline" size="sm" @click="toggleActive(vehicle)">
+                  {{ vehicle.active ? "Aus" : "An" }}
                 </Button>
-                <Button variant="destructive" @click="handleDelete(vehicle)">
+                <Button variant="destructive" size="sm" @click="handleDelete(vehicle)">
                   <Trash2Icon />
                   Löschen
                 </Button>
@@ -688,7 +737,7 @@ defineExpose({ initialize });
         :uploading="uploading"
         :saving="savingVehicle"
         @save="handleVehicleSave"
-        @image-select="handleVehicleImageSelect"
+        @images-select="handleVehicleImagesSelect"
       />
     </template>
   </div>

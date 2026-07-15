@@ -11,16 +11,21 @@ export const VOTING_MODE_META: Record<VotingMode, { label: string; description: 
     description: "Punkte auf bis zu 3 Fahrzeuge.",
     hint: "Punkte verteilen",
   },
-  SWIPE: {
-    label: "Vergleichsabstimmung",
+  DUEL: {
+    label: "Vergleichsduelle",
     description: "Paarweise Favoriten wählen.",
     hint: "Rechts = Favorit",
+  },
+  SWIPE: {
+    label: "Tinder",
+    description: "Jedes Fahrzeug einmal bewerten.",
+    hint: "Rechts = Like",
   },
 };
 
 export function votingModeLabel(mode: VotingMode, coinBudget?: number, swipeDuels?: number): string {
   if (mode === "COINS" && coinBudget) return `Punkteverteilung (${coinBudget})`;
-  if (mode === "SWIPE" && swipeDuels) return `Vergleichsabstimmung (${swipeDuels})`;
+  if (mode === "DUEL" && swipeDuels) return `Vergleichsduelle (${swipeDuels})`;
   return VOTING_MODE_META[mode].label;
 }
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { toast } from "vue-sonner";
+import { toast } from "@/lib/toast";
 import { MinusIcon, PlusIcon } from "@lucide/vue";
 import SurfaceCard from "@/components/layout/SurfaceCard.vue";
 import { Button } from "@/components/ui/button";

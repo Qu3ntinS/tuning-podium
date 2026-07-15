@@ -95,6 +95,45 @@ export function normalizeCoinsPicks(picks: VotePickInput[]): NormalizedVotePick[
   }));
 }
 
+export function validateSwipeLikes(
+  picks: VotePickInput[],
+  activeVehicleCount: number,
+): string | null {
+  if (activeVehicleCount < 1) {
+    return "Keine aktiven Fahrzeuge verfügbar.";
+  }
+
+  if (picks.length !== activeVehicleCount) {
+    return `Alle ${activeVehicleCount} Fahrzeuge müssen bewertet werden.`;
+  }
+
+  const vehicleIds = picks.map((pick) => pick.vehicleId);
+  if (new Set(vehicleIds).size !== vehicleIds.length) {
+    return "Jedes Fahrzeug darf nur einmal bewertet werden.";
+  }
+
+  for (const pick of picks) {
+    if (!pick.vehicleId?.trim()) return "Ungültige Fahrzeug-ID.";
+    const points = pick.points ?? -1;
+    if (points !== 0 && points !== 1) {
+      return "Bewertung muss Like (1) oder Dislike (0) sein.";
+    }
+  }
+
+  return null;
+}
+
+export function normalizeSwipeLikes(picks: VotePickInput[]): NormalizedVotePick[] {
+  return picks
+    .filter((pick) => (pick.points ?? 0) > 0)
+    .map((pick, index) => ({
+      vehicleId: pick.vehicleId,
+      rank: index + 1,
+      points: 1,
+    }));
+}
+
+/** Duel-based pairwise swipe voting. */
 export function validateSwipeDuels(duels: DuelInput[], swipeDuels: number): string | null {
   if (duels.length !== swipeDuels) {
     return `Genau ${swipeDuels} Duelle sind erforderlich.`;
@@ -129,7 +168,7 @@ export function normalizeSwipeDuels(duels: DuelInput[]): NormalizedVotePick[] {
 
 export function validateVoteSubmission(
   settings: EventSettings,
-  input: { picks?: VotePickInput[]; duels?: DuelInput[] },
+  input: { picks?: VotePickInput[]; duels?: DuelInput[]; activeVehicleCount?: number },
 ): { error: string | null; normalized: NormalizedVotePick[] } {
   if (settings.votingMode === "PODIUM") {
     const picks = input.picks ?? [];
@@ -145,11 +184,19 @@ export function validateVoteSubmission(
     return { error: null, normalized: normalizeCoinsPicks(picks) };
   }
 
-  if (settings.votingMode === "SWIPE") {
+  if (settings.votingMode === "DUEL") {
     const duels = input.duels ?? [];
     const error = validateSwipeDuels(duels, settings.swipeDuels);
     if (error) return { error, normalized: [] };
     return { error: null, normalized: normalizeSwipeDuels(duels) };
+  }
+
+  if (settings.votingMode === "SWIPE") {
+    const picks = input.picks ?? [];
+    const activeVehicleCount = input.activeVehicleCount ?? 0;
+    const error = validateSwipeLikes(picks, activeVehicleCount);
+    if (error) return { error, normalized: [] };
+    return { error: null, normalized: normalizeSwipeLikes(picks) };
   }
 
   return { error: "Unbekannter Abstimmungsmodus.", normalized: [] };
@@ -161,8 +208,10 @@ export function votingModeLabel(mode: VotingMode): string {
       return "Podium (5/3/1)";
     case "COINS":
       return "Münzen verteilen";
+    case "DUEL":
+      return "Vergleichsduelle";
     case "SWIPE":
-      return "Swipe-Duelle";
+      return "Tinder (Like/Dislike)";
     default:
       return mode;
   }

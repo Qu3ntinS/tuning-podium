@@ -1,0 +1,1 @@
+ALTER TYPE "VotingMode" ADD VALUE 'DUEL';

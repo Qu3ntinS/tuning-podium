@@ -77,6 +77,8 @@ export function normalizeVehicleProfile(input: VehicleProfileInput): {
   };
 }
 
+import { vehicleImageSelect } from "./vehicle-images.js";
+
 export const vehiclePublicSelect = {
   id: true,
   name: true,
@@ -87,4 +89,8 @@ export const vehiclePublicSelect = {
   tiktokUrl: true,
   youtubeUrl: true,
   websiteUrl: true,
+  images: {
+    select: vehicleImageSelect,
+    orderBy: { sortOrder: "asc" as const },
+  },
 } as const;

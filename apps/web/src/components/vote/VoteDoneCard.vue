@@ -34,11 +34,14 @@ const totalPoints = computed(() =>
 
 const summaryTitle = computed(() => {
   if (props.votingMode === "COINS") return "Deine Verteilung";
+  if (props.votingMode === "SWIPE") return "Deine Likes";
+  if (props.votingMode === "DUEL") return "Deine Favoriten";
   return "Deine Favoriten";
 });
 
 const countLabel = computed(() => {
-  if (props.votingMode === "SWIPE") return `${props.picks.length} Fahrzeuge`;
+  if (props.votingMode === "SWIPE") return `${props.picks.length} Likes`;
+  if (props.votingMode === "DUEL") return `${props.picks.length} Fahrzeuge`;
   if (props.votingMode === "COINS") return `${totalPoints.value} Punkte`;
   return "Top 3";
 });
@@ -51,6 +54,8 @@ function rankMeta(rank: number) {
 
 function pointsLabel(pick: VotePick) {
   if (props.votingMode === "COINS") return "Punkte";
+  if (props.votingMode === "SWIPE") return "Like";
+  if (props.votingMode === "DUEL") return pick.points === 1 ? "Sieg" : "Siege";
   return pick.points === 1 ? "Sieg" : "Siege";
 }
 

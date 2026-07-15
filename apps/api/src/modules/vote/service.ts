@@ -101,21 +101,46 @@ export abstract class VoteService {
     }
 
     const eventConfig = await getEventConfig();
+    const activeVehicleCount =
+      eventConfig.votingMode === "SWIPE"
+        ? await prisma.vehicle.count({ where: { active: true } })
+        : undefined;
+
     const { error, normalized } = validateVoteSubmission(eventConfig, {
       picks: body.picks,
       duels: body.duels,
+      activeVehicleCount,
     });
     if (error) {
       return { status: 400, cookie, body: { error } };
     }
 
-    const vehicleIds = normalized.map((p) => p.vehicleId);
-    const vehicles = await prisma.vehicle.findMany({
-      where: { id: { in: vehicleIds }, active: true },
-      select: { id: true },
-    });
-    if (vehicles.length !== vehicleIds.length) {
-      return { status: 400, cookie, body: { error: "Mindestens ein Fahrzeug ist ungültig oder inaktiv." } };
+    if (eventConfig.votingMode === "SWIPE") {
+      const activeVehicles = await prisma.vehicle.findMany({
+        where: { active: true },
+        select: { id: true },
+      });
+      const ratedIds = new Set((body.picks ?? []).map((pick) => pick.vehicleId));
+      const missingActive = activeVehicles.some((vehicle) => !ratedIds.has(vehicle.id));
+      const unknownRated = (body.picks ?? []).some(
+        (pick) => !activeVehicles.some((vehicle) => vehicle.id === pick.vehicleId),
+      );
+      if (missingActive || unknownRated) {
+        return {
+          status: 400,
+          cookie,
+          body: { error: "Alle aktiven Fahrzeuge müssen genau einmal bewertet werden." },
+        };
+      }
+    } else {
+      const vehicleIds = normalized.map((p) => p.vehicleId);
+      const vehicles = await prisma.vehicle.findMany({
+        where: { id: { in: vehicleIds }, active: true },
+        select: { id: true },
+      });
+      if (vehicles.length !== vehicleIds.length) {
+        return { status: 400, cookie, body: { error: "Mindestens ein Fahrzeug ist ungültig oder inaktiv." } };
+      }
     }
 
     const ip = clientIpFromRequest(request, config.trustProxy);

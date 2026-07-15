@@ -1,6 +1,13 @@
 import { t } from "elysia";
 import { SharedModel } from "../shared/model.js";
 
+const vehicleImage = t.Object({
+  id: t.String(),
+  url: t.String(),
+  isPrimary: t.Boolean(),
+  sortOrder: t.Integer(),
+});
+
 const vehiclePick = t.Object({
   id: t.String(),
   name: t.String(),
@@ -11,6 +18,7 @@ const vehiclePick = t.Object({
   tiktokUrl: t.Nullable(t.String()),
   youtubeUrl: t.Nullable(t.String()),
   websiteUrl: t.Nullable(t.String()),
+  images: t.Array(vehicleImage),
 });
 
 const votePick = t.Object({
@@ -23,7 +31,7 @@ export const VoteModel = {
   pickInput: t.Object({
     vehicleId: t.String({ minLength: 1 }),
     rank: t.Optional(t.Integer({ minimum: 1, maximum: 3 })),
-    points: t.Optional(t.Integer({ minimum: 1, maximum: 100 })),
+    points: t.Optional(t.Integer({ minimum: 0, maximum: 100 })),
   }),
   duelInput: t.Object({
     winnerId: t.String({ minLength: 1 }),
@@ -36,7 +44,7 @@ export const VoteModel = {
       t.Object({
         vehicleId: t.String({ minLength: 1 }),
         rank: t.Optional(t.Integer({ minimum: 1, maximum: 3 })),
-        points: t.Optional(t.Integer({ minimum: 1, maximum: 100 })),
+        points: t.Optional(t.Integer({ minimum: 0, maximum: 100 })),
       }),
     )),
     duels: t.Optional(t.Array(

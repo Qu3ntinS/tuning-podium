@@ -16,16 +16,17 @@ const tabs = [
     class="mobile-tab-bar fixed inset-x-0 bottom-0 z-50 md:hidden"
     aria-label="Hauptnavigation"
   >
-    <div class="mobile-tab-bar-inner mx-auto flex max-w-lg items-stretch justify-around gap-1 px-2">
+    <div class="mobile-tab-bar-shell">
+      <div class="mobile-tab-bar-inner mx-auto flex max-w-lg items-stretch justify-around gap-1 px-2">
       <RouterLink
         v-for="tab in tabs"
         :key="tab.to"
         :to="tab.to"
         :class="
           cn(
-            'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-[10px] font-medium transition-all duration-200',
+            'mobile-tab-item relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-[10px] font-medium',
             route.path === tab.to
-              ? 'bg-foreground/6 text-foreground'
+              ? 'mobile-tab-item-active text-foreground'
               : 'text-muted-foreground active:scale-95',
           )
         "
@@ -37,6 +38,7 @@ const tabs = [
         />
         <span class="truncate">{{ tab.label }}</span>
       </RouterLink>
+      </div>
     </div>
   </nav>
 </template>
