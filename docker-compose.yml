@@ -63,6 +63,7 @@ services:
       - "${HTTP_PORT:-8080}:80"
     volumes:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - podium_uploads:/data/uploads:ro
 
 volumes:
   podium_pg_data:
