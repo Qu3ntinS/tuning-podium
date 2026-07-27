@@ -13,6 +13,8 @@
     "check": "bun run --filter '*' check",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
+    "docker:prod": "docker compose --profile prod up -d --build",
+    "docker:prod:down": "docker compose --profile prod down",
     "db:migrate": "bun run --filter @tuning-podium/api prisma:migrate",
     "db:studio": "bun run --filter @tuning-podium/api prisma:studio"
   },

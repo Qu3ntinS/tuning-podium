@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: podium
-      POSTGRES_PASSWORD: podium
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-podium}
       POSTGRES_DB: tuning_podium
     ports:
       - "5433:5432"
@@ -16,5 +16,52 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://podium:${POSTGRES_PASSWORD:-podium}@db:5432/tuning_podium
+      PORT: "3001"
+      NODE_ENV: production
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      CORS_ORIGIN: ${PUBLIC_APP_URL:-http://localhost:8080}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tuning-podium.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-now-123}
+      UPLOAD_DIR: /data/uploads
+      PUBLIC_ASSETS_PATH: /assets
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-5242880}
+      VOTE_RATE_LIMIT_MAX: ${VOTE_RATE_LIMIT_MAX:-5}
+      VOTE_RATE_LIMIT_WINDOW_MS: ${VOTE_RATE_LIMIT_WINDOW_MS:-86400000}
+    volumes:
+      - podium_uploads:/data/uploads
+    expose:
+      - "3001"
+
+  web:
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+      args:
+        VITE_PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:8080}
+        VITE_API_URL: ""
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+
 volumes:
   podium_pg_data:
+  podium_uploads:

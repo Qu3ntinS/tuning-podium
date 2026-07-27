@@ -135,3 +135,28 @@ tuning-podium/
 1. `VITE_PUBLIC_APP_URL` und `PUBLIC_APP_URL` auf die echte Domain setzen
 2. `JWT_SECRET`, `ADMIN_PASSWORD` und `TRUST_PROXY=true` hinter Reverse-Proxy
 3. `bun run build` → API mit `bun start`, Web-Static aus `apps/web/dist`
+
+## Docker (Server)
+
+Für lokale Entwicklung reicht weiterhin nur Postgres: `bun run db:up`.
+
+Vollständiger Stack (Postgres + API + Nginx mit Frontend):
+
+```bash
+cp .env.docker.example .env
+# JWT_SECRET, ADMIN_PASSWORD, POSTGRES_PASSWORD, PUBLIC_APP_URL setzen
+
+docker compose --profile prod up -d --build
+# oder: bun run docker:prod
+```
+
+| URL | Beschreibung |
+|-----|--------------|
+| http://localhost:8080 | Frontend (Port über `HTTP_PORT`) |
+| http://localhost:8080/health | API Healthcheck (via Nginx) |
+
+Nginx liefert die Vue-App und proxyt `/api`, `/assets` und `/health` zur API. Uploads liegen im Volume `podium_uploads`.
+
+Hinter HTTPS-Terminierung (Caddy, Traefik, nginx): nur Port 80/443 des Reverse-Proxys nach `web:80` leiten und `PUBLIC_APP_URL` auf `https://…` setzen. Bei Bedarf `web`-Ports in `docker-compose.yml` entfernen und den Proxy ins Docker-Netz hängen.
+
+Stoppen: `docker compose --profile prod down` bzw. `bun run docker:prod:down`.
