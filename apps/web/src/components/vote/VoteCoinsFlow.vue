@@ -95,8 +95,9 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 sm:gap-5">
+  <div class="vote-flow-stack">
     <SurfaceCard
+      class="vote-flow-podium-panel"
       title="Punkteverteilung"
       :description="`${remainingCoins} von ${config.coinBudget} Punkten verfügbar`"
     >
@@ -119,7 +120,7 @@ async function handleSubmit() {
             <Button
               variant="outline"
               size="icon"
-              class="size-8 rounded-full"
+              class="size-11 rounded-full sm:size-8"
               :disabled="coinsForVehicle(vehicleId) <= 1"
               @click="setCoins(vehicleId, coinsForVehicle(vehicleId) - 1)"
             >
@@ -131,7 +132,7 @@ async function handleSubmit() {
             <Button
               variant="outline"
               size="icon"
-              class="size-8 rounded-full"
+              class="size-11 rounded-full sm:size-8"
               :disabled="remainingCoins < 1"
               @click="setCoins(vehicleId, coinsForVehicle(vehicleId) + 1)"
             >
@@ -142,8 +143,8 @@ async function handleSubmit() {
       </div>
     </SurfaceCard>
 
-    <SurfaceCard title="Fahrzeuge">
-      <div class="flex flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <SurfaceCard class="vote-flow-vehicles-panel" title="Fahrzeuge">
+      <div class="vehicle-list-scroll">
         <VehiclePickCard
           v-for="vehicle in vehicles"
           :key="vehicle.id"
@@ -155,9 +156,9 @@ async function handleSubmit() {
       </div>
     </SurfaceCard>
 
-    <div class="vote-cta-spacer" />
+    <div class="vote-cta-spacer vote-flow-cta-spacer" />
 
-    <div class="cta-bar">
+    <div class="cta-bar vote-flow-cta">
       <Button size="lg" class="cta-button" :disabled="!canSubmit || submitting" @click="handleSubmit">
         {{ submitting ? "Übermitteln…" : "Stimme abgeben" }}
       </Button>

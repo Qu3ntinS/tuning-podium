@@ -64,7 +64,7 @@ Zweite Stimme vom selben Gerät wird mit `409` abgelehnt.
 
 ### 3. Leaderboard
 
-http://localhost:5173/leaderboard — aktualisiert sich alle 15 Sekunden.
+http://localhost:5173/leaderboard — aktualisiert sich automatisch (Live-Sync ca. alle 8 Sekunden). Auf dem Handy: **nach unten ziehen** zum manuellen Aktualisieren.
 
 ### API direkt (optional)
 

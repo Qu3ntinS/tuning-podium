@@ -6,7 +6,7 @@ import LeaderboardPodium from "@/components/leaderboard/LeaderboardPodium.vue";
 import PageHeader from "@/components/layout/PageHeader.vue";
 import SurfaceCard from "@/components/layout/SurfaceCard.vue";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLiveRefresh } from "@/composables/useLiveRefresh";
+import { usePageSync } from "@/composables/usePageSync";
 import { useActiveEventSlug } from "@/composables/useActiveEvent";
 import { fetchLeaderboard, type LeaderboardEntry, type VotingMode } from "@/lib/api";
 import { votingModeLabel } from "@/lib/voting-modes";
@@ -60,8 +60,9 @@ watch(
   { immediate: true },
 );
 
-useLiveRefresh({
+usePageSync({
   slug: () => props.slug,
+  intervalMs: 8_000,
   onRefresh: () => loadLeaderboard(true),
 });
 </script>

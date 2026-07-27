@@ -36,7 +36,7 @@ const slotGlow = (slot: (typeof slots.value)[number]) => {
       type="button"
       :class="
         cn(
-          'soft-row soft-row-interactive w-full p-3',
+          'soft-row soft-row-interactive w-full gap-3 p-3.5',
           slot.tone,
           slot.isActive && slotGlow(slot),
           slot.isFilled && !slot.isActive && 'opacity-90',
@@ -96,7 +96,7 @@ const slotGlow = (slot: (typeof slots.value)[number]) => {
       type="button"
       :class="
         cn(
-          'group flex min-h-32 flex-col items-center justify-center gap-2 rounded-xl px-2.5 py-3 transition-all duration-200',
+          'group flex min-h-[8.5rem] flex-col items-center justify-center gap-2 rounded-xl px-2.5 py-3 transition-all duration-200',
           slot.tone,
           slot.isActive && cn('scale-[1.02]', slotGlow(slot)),
           slot.isFilled && !slot.isActive && 'opacity-90',

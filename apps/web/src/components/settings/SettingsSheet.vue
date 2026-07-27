@@ -81,7 +81,7 @@ function closeSheet() {
         size="icon-sm"
         :class="
           cn(
-            'relative shrink-0 rounded-xl text-muted-foreground hover:bg-foreground/6 hover:text-foreground',
+            'relative size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-foreground/6 hover:text-foreground sm:size-8',
           )
         "
         aria-label="Einstellungen öffnen"

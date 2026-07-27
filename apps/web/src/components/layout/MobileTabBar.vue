@@ -27,7 +27,7 @@ const tabs = computed(() => [
         :to="tab.to"
         :class="
           cn(
-            'mobile-tab-item relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2.5 text-[10px] font-medium',
+            'mobile-tab-item relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-3 text-[11px] font-medium',
             route.path === tab.to || route.path.startsWith(`${tab.to}/`)
               ? 'mobile-tab-item-active text-foreground'
               : 'text-muted-foreground active:scale-95',

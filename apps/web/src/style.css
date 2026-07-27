@@ -155,6 +155,13 @@
 
   html {
     @apply scroll-smooth;
+    scroll-padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 768px) {
+    html {
+      scroll-padding-bottom: 1.5rem;
+    }
   }
 
   body {
@@ -447,13 +454,44 @@
       var(--glass-shadow-soft);
   }
 
+  .vote-page-header .page-header-meta {
+    width: 100%;
+  }
+
+  .vote-page-header .page-header-meta .stat-pill {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .vote-page-header .page-description {
+    display: none;
+  }
+
+  @media (min-width: 640px) {
+    .vote-page-header .page-description {
+      display: block;
+    }
+  }
+
   .soft-row-interactive {
     cursor: pointer;
     text-align: left;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .soft-row-interactive:hover {
-    transform: translateY(-1px);
+  @media (max-width: 767px) {
+    .soft-row-interactive {
+      min-height: 3.5rem;
+    }
+  }
+
+  @media (hover: hover) {
+    .soft-row-interactive:hover {
+      transform: translateY(-1px);
+    }
   }
 
   .soft-row-interactive:active {
@@ -556,6 +594,30 @@
     }
   }
 
+  .pull-refresh-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 9999px;
+    background: var(--glass-bg-elevated);
+    -webkit-backdrop-filter: var(--glass-filter-strong);
+    backdrop-filter: var(--glass-filter-strong);
+    box-shadow: var(--glass-inset-highlight), var(--glass-ring);
+    transition: transform 0.12s ease-out, opacity 0.15s ease;
+  }
+
+  .pull-refresh-ring {
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    border: 2px solid oklch(from var(--muted-foreground) l c h / 22%);
+    border-top-color: var(--primary);
+    transform: rotate(calc(var(--pull-progress, 0) * 300deg));
+  }
+
   .animate-fade-up {
     animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
@@ -576,26 +638,49 @@
     box-shadow: var(--glass-inset-highlight), var(--glass-ring);
   }
 
+  @media (hover: none) {
+    .vehicle-pick:hover {
+      background: var(--glass-bg-faint);
+      box-shadow: var(--glass-inset-highlight), var(--glass-ring);
+    }
+  }
+
   .cta-bar {
     position: sticky;
     bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
     z-index: 40;
     display: flex;
     justify-content: center;
-    padding-bottom: 0.5rem;
+    margin-inline: -0.25rem;
+    padding: 0.5rem 0.25rem 0.625rem;
+    border-radius: 1.25rem;
+    background: linear-gradient(
+      to top,
+      oklch(from var(--background) l c h / 94%) 55%,
+      oklch(from var(--background) l c h / 0%) 100%
+    );
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
   }
 
   @media (min-width: 768px) {
     .cta-bar {
       bottom: 1rem;
+      margin-inline: 0;
+      padding: 0.5rem 0;
+      background: transparent;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
     }
   }
 
   .cta-button {
     width: 100%;
-    max-width: 20rem;
+    max-width: 24rem;
     min-width: 0;
-    height: 3rem;
+    min-height: 3rem;
+    height: auto;
+    padding-block: 0.75rem;
     border-radius: 9999px;
     padding-inline: 1.5rem;
     font-size: 0.875rem;
@@ -662,6 +747,9 @@
   .mobile-tab-item {
     position: relative;
     z-index: 1;
+    min-height: 3rem;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
     transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   }
 
@@ -675,17 +763,78 @@
   }
 
   .mobile-tab-bar-inner {
-    padding-top: 0.35rem;
-    padding-bottom: 0.35rem;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
   }
 
-  .vote-page-header .page-description {
-    display: none;
+  .vote-flow-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   @media (min-width: 640px) {
-    .vote-page-header .page-description {
-      display: block;
+    .vote-flow-stack {
+      gap: 1.25rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .vote-flow-stack {
+      display: grid;
+      grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr);
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    .vote-flow-cta-spacer,
+    .vote-flow-cta {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .vote-flow-podium-panel {
+      position: sticky;
+      top: 4.75rem;
+      z-index: 5;
+    }
+  }
+
+  .vehicle-list-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .vehicle-list-scroll {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .vehicle-list-scroll {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .vehicle-list-scroll {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      max-height: min(68dvh, 42rem);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-right: 0.125rem;
+      scrollbar-gutter: stable;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .vehicle-list-scroll {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 
@@ -716,13 +865,26 @@
 
   .vehicle-pick-info {
     position: absolute;
-    top: 0.5rem;
-    left: 0.5rem;
+    top: 0.375rem;
+    left: 0.375rem;
     z-index: 2;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
     border-radius: 9999px;
     background: oklch(from var(--background) l c h / 82%);
     backdrop-filter: blur(8px);
     box-shadow: 0 1px 8px oklch(from var(--foreground) l c h / 12%);
+  }
+
+  .vehicle-pick-touch {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (max-width: 639px) {
+    .vehicle-pick-row {
+      min-height: 4.75rem;
+    }
   }
 
   .vehicle-profile-sheet {
@@ -1947,10 +2109,12 @@
   .admin-nav-item {
     flex-shrink: 0;
     scroll-snap-align: start;
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     border-radius: 9999px;
     padding-inline: 1rem;
     white-space: nowrap;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .admin-overview-head {

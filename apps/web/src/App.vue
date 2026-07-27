@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
-import MobileTabBar from "@/components/layout/MobileTabBar.vue";
+import PullToRefreshIndicator from "@/components/layout/PullToRefreshIndicator.vue";
 import ConfirmDialog from "@/components/shared/ConfirmDialog.vue";
 import SettingsSheet from "@/components/settings/SettingsSheet.vue";
 import { Toaster } from "@/components/ui/sonner";
@@ -71,7 +71,7 @@ watch(
             :to="item.to"
             :class="
               cn(
-                'relative rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-300',
+                'relative rounded-full px-3.5 py-2.5 text-sm font-medium transition-all duration-300',
                 route.path === item.to || route.path.startsWith(`${item.to}/`)
                   ? 'nav-link-active'
                   : 'text-muted-foreground hover:text-foreground',
@@ -87,6 +87,8 @@ watch(
         </div>
       </div>
     </header>
+
+    <PullToRefreshIndicator />
 
     <main class="main-shell mx-auto w-full max-w-7xl px-4 sm:px-5 lg:px-6">
       <RouterView v-slot="{ Component, route: activeRoute }">

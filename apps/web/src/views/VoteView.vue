@@ -8,7 +8,7 @@ import VoteDoneCard from "@/components/vote/VoteDoneCard.vue";
 import VotePodiumFlow from "@/components/vote/VotePodiumFlow.vue";
 import VoteDuelFlow from "@/components/vote/VoteDuelFlow.vue";
 import VoteSwipeFlow from "@/components/vote/VoteSwipeFlow.vue";
-import { useLiveRefresh } from "@/composables/useLiveRefresh";
+import { usePageSync } from "@/composables/usePageSync";
 import { useActiveEventSlug } from "@/composables/useActiveEvent";
 import { createDeviceFingerprint } from "@/composables/useDeviceFingerprint";
 import {
@@ -101,9 +101,10 @@ watch(
   },
 );
 
-useLiveRefresh({
+usePageSync({
   slug: () => props.slug,
   enabled: () => !loading.value,
+  intervalMs: 8_000,
   onRefresh: () => loadVoteData(true),
 });
 </script>

@@ -24,7 +24,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLiveRefresh } from "@/composables/useLiveRefresh";
+import { usePageSync } from "@/composables/usePageSync";
 import { useActiveEventSlug } from "@/composables/useActiveEvent";
 import { useAdminAuth } from "@/composables/useAdminAuth";
 import {
@@ -543,9 +543,10 @@ watch(accessToken, (token) => {
   authenticated.value = Boolean(token);
 });
 
-useLiveRefresh({
+usePageSync({
   slug: () => activeEventSlug.value,
   enabled: authenticated,
+  intervalMs: 8_000,
   onRefresh: refreshLiveData,
 });
 

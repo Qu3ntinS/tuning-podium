@@ -101,12 +101,12 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 sm:gap-5">
-    <SurfaceCard title="Podium" :description="activeHint">
+  <div class="vote-flow-stack">
+    <SurfaceCard class="vote-flow-podium-panel" title="Podium" :description="activeHint">
       <PodiumBar :picks="picks" :active-rank="activeRank" @slot-click="handleSlotClick" />
     </SurfaceCard>
 
-    <SurfaceCard>
+    <SurfaceCard class="vote-flow-vehicles-panel">
       <template #header>
         <div class="flex items-center justify-between gap-2">
           <h2 class="panel-title">Fahrzeuge</h2>
@@ -114,7 +114,7 @@ async function handleSubmit() {
         </div>
       </template>
 
-      <div class="flex flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div class="vehicle-list-scroll">
         <VehiclePickCard
           v-for="vehicle in vehicles"
           :key="vehicle.id"
@@ -126,9 +126,9 @@ async function handleSubmit() {
       </div>
     </SurfaceCard>
 
-    <div class="vote-cta-spacer" />
+    <div class="vote-cta-spacer vote-flow-cta-spacer" />
 
-    <div class="cta-bar">
+    <div class="cta-bar vote-flow-cta">
       <Button
         size="lg"
         class="cta-button"

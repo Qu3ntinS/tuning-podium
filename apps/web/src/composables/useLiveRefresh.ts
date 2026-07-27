@@ -44,6 +44,22 @@ export function useLiveRefresh({ slug, enabled, intervalMs = 5_000, onRefresh }:
     }
   }
 
+  async function forceRefresh() {
+    if (!isEnabled(enabled) || checking) return;
+    checking = true;
+    try {
+      await onRefresh();
+      try {
+        const live = await fetchLiveRevision(resolveSlug(slug));
+        revision = live.revision;
+      } catch {
+        // keep previous revision
+      }
+    } finally {
+      checking = false;
+    }
+  }
+
   function start() {
     stop();
     if (!isEnabled(enabled)) return;
@@ -91,5 +107,6 @@ export function useLiveRefresh({ slug, enabled, intervalMs = 5_000, onRefresh }:
 
   return {
     refreshNow: checkRevision,
+    forceRefresh,
   };
 }

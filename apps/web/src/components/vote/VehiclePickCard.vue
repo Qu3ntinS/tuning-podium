@@ -46,7 +46,7 @@ function openProfile() {
     :class="
       cn(
         'vehicle-pick group relative overflow-hidden rounded-xl text-left transition-all duration-200',
-        layout === 'row' ? 'flex w-full items-stretch' : 'flex flex-col',
+        layout === 'row' ? 'vehicle-pick-row flex w-full items-stretch' : 'flex flex-col',
         selectedRank ? 'vehicle-pick-selected' : '',
         disabled && 'opacity-45',
       )
@@ -57,7 +57,7 @@ function openProfile() {
       :disabled="disabled"
       :class="
         cn(
-          'min-w-0 flex-1 text-left transition-all duration-200',
+          'vehicle-pick-touch min-w-0 flex-1 text-left transition-all duration-200',
           layout === 'row' ? 'flex items-stretch' : 'flex flex-col',
           disabled ? 'cursor-not-allowed' : 'cursor-pointer',
         )
@@ -69,7 +69,7 @@ function openProfile() {
           cn(
             'relative shrink-0 overflow-hidden',
             layout === 'row'
-              ? 'aspect-square w-[5.5rem] sm:aspect-[4/3] sm:w-full'
+              ? 'aspect-square w-[6.25rem] sm:aspect-[4/3] sm:w-full'
               : 'aspect-[4/3] w-full',
           )
         "
