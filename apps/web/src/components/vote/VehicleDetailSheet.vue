@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useMediaQuery } from "@vueuse/core";
 import { ExternalLinkIcon } from "@lucide/vue";
 import {
   Sheet,
@@ -37,11 +38,23 @@ const socialLinks = computed(() =>
   props.vehicle ? vehicleSocialLinks(props.vehicle) : [],
 );
 const showProfile = computed(() => props.vehicle && hasVehicleProfile(props.vehicle));
+
+const isDesktop = useMediaQuery("(min-width: 768px)");
+const sheetSide = computed(() => (isDesktop.value ? "right" : "bottom"));
 </script>
 
 <template>
   <Sheet v-model:open="open">
-    <SheetContent side="bottom" class="vehicle-profile-sheet" :show-close-button="true">
+    <SheetContent
+      :side="sheetSide"
+      :class="
+        cn(
+          'vehicle-profile-sheet',
+          isDesktop ? 'vehicle-profile-sheet-side' : 'vehicle-profile-sheet-bottom',
+        )
+      "
+      :show-close-button="true"
+    >
       <template v-if="vehicle && showProfile">
         <div class="vehicle-profile-hero">
           <VehicleImageGallery
