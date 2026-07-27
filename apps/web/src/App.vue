@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
+import MobileTabBar from "@/components/layout/MobileTabBar.vue";
 import PullToRefreshIndicator from "@/components/layout/PullToRefreshIndicator.vue";
 import ConfirmDialog from "@/components/shared/ConfirmDialog.vue";
 import SettingsSheet from "@/components/settings/SettingsSheet.vue";
